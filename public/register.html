@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ficha App - Registrar Empresa</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+</head>
+
+<body class="bg-slate-100 min-h-screen flex items-center justify-center p-4">
+    <div class="bg-white p-8 rounded-lg shadow-xl w-full max-w-md">
+        <div class="text-center mb-8">
+            <h1 class="text-3xl font-bold text-slate-800">Ficha App</h1>
+            <p class="text-slate-500">Registra tu empresa</p>
+        </div>
+
+        <form id="registerForm" class="space-y-4">
+            <div>
+                <label class="block text-sm font-medium text-slate-700">Nombre de la Empresa</label>
+                <input type="text" id="companyName" required
+                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-cyan-500 focus:ring-cyan-500 border p-2">
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-slate-700">Subdominio (URL)</label>
+                <div class="flex">
+                    <input type="text" id="subdomain" required
+                        class="mt-1 block w-full rounded-l-md border-gray-300 shadow-sm focus:border-cyan-500 focus:ring-cyan-500 border p-2 bg-slate-50"
+                        placeholder="ej: miempresa">
+                    <span
+                        class="inline-flex items-center px-3 rounded-r-md border border-l-0 border-gray-300 bg-gray-50 text-gray-500 text-sm mt-1">
+                        .fichaapp.com
+                    </span>
+                </div>
+                <p class="text-xs text-gray-500 mt-1">Este será tu enlace de acceso.</p>
+            </div>
+
+            <div class="border-t pt-4 mt-4">
+                <h3 class="text-sm font-semibold text-slate-800 mb-2">Datos del Administrador</h3>
+
+                <div class="space-y-3">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700">Nombre Completo</label>
+                        <input type="text" id="adminName" required
+                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-cyan-500 focus:ring-cyan-500 border p-2">
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700">Nombre de Usuario</label>
+                        <input type="text" id="adminUsername" required
+                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-cyan-500 focus:ring-cyan-500 border p-2">
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700">Contraseña</label>
+                        <input type="password" id="adminPassword" required
+                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-cyan-500 focus:ring-cyan-500 border p-2">
+                    </div>
+                </div>
+            </div>
+
+            <button type="submit"
+                class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-cyan-600 hover:bg-cyan-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-cyan-500 mt-6">
+                Crear Cuenta
+            </button>
+        </form>
+
+        <div class="mt-4 text-center">
+            <a href="/" class="text-sm text-cyan-600 hover:text-cyan-500">¿Ya tienes cuenta? Inicia sesión</a>
+        </div>
+    </div>
+
+    <script>
+        // Auto-generate subdomain from company name
+        document.getElementById('companyName').addEventListener('input', function (e) {
+            const sub = e.target.value.toLowerCase().replace(/[^a-z0-9]/g, '');
+            document.getElementById('subdomain').value = sub;
+        });
+
+        document.getElementById('registerForm').addEventListener('submit', async function (e) {
+            e.preventDefault();
+
+            const data = {
+                companyName: document.getElementById('companyName').value,
+                subdomain: document.getElementById('subdomain').value,
+                adminName: document.getElementById('adminName').value,
+                adminUsername: document.getElementById('adminUsername').value,
+                adminPassword: document.getElementById('adminPassword').value,
+                plan: 'free' // Default to free plan
+            };
+
+            try {
+                const response = await fetch('/api/register-company', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    Swal.fire({
+                        icon: 'success',
+                        title: '¡Empresa registrada!',
+                        text: 'Redirigiendo a tu espacio de trabajo...',
+                        timer: 2000,
+                        showConfirmButton: false
+                    }).then(() => {
+                        // Redirect to the new subdomain context
+                        window.location.href = `/?company=${data.subdomain}`;
+                    });
+                } else {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: result.error || 'No se pudo registrar la empresa'
+                    });
+                }
+            } catch (error) {
+                console.error(error);
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: 'Error de conexión'
+                });
+            }
+        });
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,174 @@
+{
+  "fecha": "2025-12-17T08:36:57.855Z",
+  "total": 33,
+  "pasados": 30,
+  "fallados": 3,
+  "porcentaje": 90.9,
+  "resultados": [
+    {
+      "name": "Servidor HTTPS activo",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "name": "Archivo de base de datos existe",
+      "passed": false,
+      "details": ""
+    },
+    {
+      "name": "Archivo de esquema existe",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "name": "GET /api/users responde",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "name": "Retorna array de usuarios",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "name": "Usuarios tienen estructura correcta",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "name": "Existe al menos 1 admin",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "name": "Existe al menos 1 empleado",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "name": "GET /api/horarios responde",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "name": "Retorna array de horarios",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "name": "Horarios tienen estructura correcta",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "name": "Crear primer turno",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "name": "Crear segundo turno (doble turno)",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "name": "Sistema soporta múltiples turnos por día",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "name": "GET /api/config responde",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "name": "Configuración tiene estructura correcta",
+      "passed": false,
+      "details": ""
+    },
+    {
+      "name": "GET /api/stats responde",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "name": "Estadísticas tienen estructura correcta",
+      "passed": false,
+      "details": ""
+    },
+    {
+      "name": "GET /api/logs responde",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "name": "Retorna array de logs",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "name": "index.html existe",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "name": "manifest.json existe",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "name": "service-worker.js existe",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "name": "Certificado SSL existe",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "name": "Llave SSL existe",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "name": "HTML contiene función renderLogin",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "name": "HTML contiene función renderEmployee",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "name": "HTML contiene función renderAdmin",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "name": "HTML contiene función showHorarios",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "name": "HTML contiene función editEmployeeSchedule",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "name": "HTML contiene función toggleTurn2",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "name": "HTML contiene función toggleEditTurn2",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "name": "HTML contiene checkboxes de doble turno",
+      "passed": true,
+      "details": ""
+    }
+  ]
+}

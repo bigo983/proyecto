@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Super Admin Dashboard - Ficha App</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+</head>
+
+<body class="bg-gray-100 font-sans">
+    <div class="flex h-screen overflow-hidden">
+        <!-- Sidebar -->
+        <aside class="w-64 bg-slate-900 text-white flex flex-col">
+            <div class="p-6">
+                <h1 class="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 to-blue-500">
+                    SUPER ADMIN
+                </h1>
+                <p class="text-xs text-slate-400 mt-1">Gestión de Plataforma</p>
+            </div>
+
+            <nav class="flex-1 px-4 space-y-2 mt-4">
+                <a href="#" class="flex items-center gap-3 px-4 py-3 bg-slate-800 text-white rounded-lg transition-all">
+                    <span>🏢</span>
+                    <span class="font-medium">Empresas</span>
+                </a>
+                <a href="/dashboard.html"
+                    class="flex items-center gap-3 px-4 py-3 text-slate-400 hover:bg-slate-800 hover:text-white rounded-lg transition-all opacity-50">
+                    <span>📊</span>
+                    <span class="font-medium">Dashboard Normal</span>
+                </a>
+            </nav>
+
+            <div class="p-4 border-t border-slate-800">
+                <button onclick="logout()"
+                    class="flex items-center gap-3 px-4 py-3 w-full text-left text-red-400 hover:bg-red-900/20 rounded-lg transition-all">
+                    <span>🚪</span>
+                    <span class="font-medium">Cerrar Sesión</span>
+                </button>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="flex-1 flex flex-col overflow-hidden">
+            <!-- Header -->
+            <header class="bg-white shadow-sm border-b px-8 py-4 flex justify-between items-center">
+                <h2 class="text-xl font-bold text-slate-800">Listado de Empresas</h2>
+                <div class="flex items-center gap-4">
+                    <button onclick="registrarEmpresaManual()"
+                        class="bg-cyan-600 hover:bg-cyan-700 text-white px-4 py-2 rounded-lg font-medium shadow-sm transition-all flex items-center gap-2">
+                        <span>➕</span> Nueva Empresa
+                    </button>
+                    <div
+                        class="h-8 w-8 rounded-full bg-slate-900 flex items-center justify-center text-white font-bold">
+                        SA
+                    </div>
+                </div>
+            </header>
+
+            <!-- Content -->
+            <div class="flex-1 overflow-auto p-8">
+                <!-- Stats Overview -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                    <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                        <p class="text-sm font-medium text-slate-500 mb-1">Total Empresas</p>
+                        <h3 class="text-3xl font-bold text-slate-800" id="total-companies">0</h3>
+                    </div>
+                    <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                        <p class="text-sm font-medium text-slate-500 mb-1">Total Usuarios</p>
+                        <h3 class="text-3xl font-bold text-slate-800" id="total-users">0</h3>
+                    </div>
+                </div>
+
+                <!-- Companies Table -->
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                    <table class="w-full text-left text-sm text-slate-600">
+                        <thead class="bg-slate-50 text-xs uppercase font-semibold text-slate-500">
+                            <tr>
+                                <th class="px-6 py-4">Empresa</th>
+                                <th class="px-6 py-4">Subdominio</th>
+                                <th class="px-6 py-4 text-center">Estado</th>
+                                <th class="px-6 py-4 text-center">Usuarios</th>
+                                <th class="px-6 py-4 text-center">Fecha Registro</th>
+                                <th class="px-6 py-4 text-center">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="companies-list" class="divide-y divide-slate-100">
+                            <tr>
+                                <td colspan="6" class="px-6 py-8 text-center text-slate-400">
+                                    Cargando empresas...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        const SUPERADMIN_TOKEN_KEY = 'fichaapp_superadmin_token';
+
+        function getToken() {
+            return localStorage.getItem(SUPERADMIN_TOKEN_KEY);
+        }
+
+        function setToken(token) {
+            localStorage.setItem(SUPERADMIN_TOKEN_KEY, token);
+        }
+
+        function clearToken() {
+            localStorage.removeItem(SUPERADMIN_TOKEN_KEY);
+        }
+
+        function renderSuperAdminLogin() {
+            document.body.innerHTML = `
+                <div class="min-h-screen bg-gray-100 flex items-center justify-center p-4">
+                    <div class="bg-white w-full max-w-md rounded-xl shadow-sm border border-slate-200 p-8">
+                        <h1 class="text-2xl font-bold text-slate-900 mb-1">Super Admin</h1>
+                        <p class="text-sm text-slate-500 mb-6">Acceso de plataforma (no empresa)</p>
+
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-1">Usuario</label>
+                                <input id="sa-user" class="w-full px-4 py-3 border border-slate-300 rounded-lg" autocomplete="username" />
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-1">Contraseña</label>
+                                <input id="sa-pass" type="password" class="w-full px-4 py-3 border border-slate-300 rounded-lg" autocomplete="current-password" />
+                            </div>
+                            <button id="sa-login" class="w-full bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-3 rounded-lg">
+                                Iniciar sesión
+                            </button>
+                            <a href="/" class="block text-center text-sm text-slate-500 hover:text-slate-700">Volver</a>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            document.getElementById('sa-login').addEventListener('click', loginSuperAdmin);
+            document.getElementById('sa-pass').addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') loginSuperAdmin();
+            });
+        }
+
+        async function loginSuperAdmin() {
+            const username = document.getElementById('sa-user').value;
+            const password = document.getElementById('sa-pass').value;
+
+            if (!username || !password) {
+                Swal.fire('Error', 'Usuario y contraseña requeridos', 'error');
+                return;
+            }
+
+            const res = await fetch('/api/superadmin/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password })
+            });
+
+            const data = await res.json();
+            if (!res.ok) {
+                Swal.fire('Error', data.error || 'Login fallido', 'error');
+                return;
+            }
+
+            setToken(data.token);
+            window.location.href = '/superadmin.html';
+        }
+
+        async function loadCompanies() {
+            try {
+                const token = getToken();
+                if (!token) {
+                    renderSuperAdminLogin();
+                    return;
+                }
+                const res = await fetch('/api/superadmin/companies', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                if (res.status === 401 || res.status === 403) {
+                    clearToken();
+                    renderSuperAdminLogin();
+                    return;
+                }
+                if (!res.ok) throw new Error('No autorizado');
+
+                const companies = await res.json();
+                renderCompanies(companies);
+            } catch (err) {
+                console.error(err);
+                Swal.fire('Error', 'No se pudieron cargar las empresas', 'error');
+            }
+        }
+
+        function renderCompanies(companies) {
+            const tbody = document.getElementById('companies-list');
+
+            // Stats
+            document.getElementById('total-companies').textContent = companies.length;
+            const totalUsers = companies.reduce((acc, c) => acc + c.userCount, 0);
+            document.getElementById('total-users').textContent = totalUsers;
+
+            tbody.innerHTML = companies.map(c => `
+                <tr class="hover:bg-slate-50 transition-colors">
+                    <td class="px-6 py-4 font-medium text-slate-900">${c.name}</td>
+                    <td class="px-6 py-4">
+                        <a href="/?company=${c.subdomain}" target="_blank" class="text-cyan-600 hover:underline">
+                            ${c.subdomain}.fichaapp.com
+                        </a>
+                    </td>
+                    <td class="px-6 py-4 text-center">
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold ${c.active ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800'}">
+                            ${c.active ? 'ACTIVA' : 'DESACTIVADA'}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 text-center">
+                        <span class="bg-slate-100 text-slate-600 px-2 py-1 rounded-md text-xs font-bold">
+                            ${c.userCount}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 text-center text-xs text-slate-400">
+                        ${new Date(c.createdAt).toLocaleDateString()}
+                    </td>
+                    <td class="px-6 py-4 text-center">
+                        <div class="flex justify-center gap-2">
+                            <button onclick="editarEmpresa(${c.id}, '${c.name}', ${c.active ? 'true' : 'false'})" class="text-slate-400 hover:text-blue-600 transition-colors" title="Editar">
+                                ✏️
+                            </button>
+                            <button onclick="eliminarEmpresa(${c.id})" class="text-slate-400 hover:text-red-600 transition-colors" title="Eliminar">
+                                🗑️
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        async function eliminarEmpresa(id) {
+            const confirm = await Swal.fire({
+                title: '¿Eliminar empresa?',
+                text: "Esta acción borrará TODOS los datos de la empresa (usuarios, fichajes, etc). No se puede deshacer.",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#d33',
+                confirmButtonText: 'Sí, eliminar',
+                cancelButtonText: 'Cancelar'
+            });
+
+            if (confirm.isConfirmed) {
+                const token = getToken();
+                const res = await fetch(`/api/superadmin/companies/${id}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                if (res.ok) {
+                    Swal.fire('Eliminada', 'La empresa ha sido eliminada.', 'success');
+                    loadCompanies();
+                } else {
+                    Swal.fire('Error', 'No se pudo eliminar.', 'error');
+                }
+            }
+        }
+
+        async function editarEmpresa(id, name, currentActive) {
+            const { value: formValues } = await Swal.fire({
+                title: 'Editar Empresa',
+                html: `
+                    <div class="text-left mb-2 space-y-2">
+                        <label class="block text-sm">Nombre</label>
+                        <input id="swal-company-name" class="swal2-input" value="${name}">
+                        <label class="block text-sm">Estado</label>
+                        <select id="swal-company-active" class="swal2-input">
+                            <option value="true" ${currentActive ? 'selected' : ''}>Activa</option>
+                            <option value="false" ${!currentActive ? 'selected' : ''}>Desactivada</option>
+                        </select>
+                    </div>
+                `,
+                focusConfirm: false,
+                showCancelButton: true,
+                preConfirm: () => {
+                    return [
+                        document.getElementById('swal-company-name').value,
+                        document.getElementById('swal-company-active').value
+                    ]
+                }
+            });
+
+            if (formValues) {
+                const [newName, newActiveRaw] = formValues;
+                const newActive = String(newActiveRaw) === 'true';
+                const token = getToken();
+                await fetch(`/api/superadmin/companies/${id}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ name: newName, active: newActive })
+                });
+                loadCompanies();
+            }
+        }
+
+        async function registrarEmpresaManual() {
+            const { value: formValues } = await Swal.fire({
+                title: 'Crear nueva empresa',
+                html: `
+                    <div class="text-left mb-2 space-y-2">
+                        <label class="block text-sm">Nombre de la empresa</label>
+                        <input id="swal-new-company-name" class="swal2-input" placeholder="Ej: Restaurante Pepe" />
+
+                        <label class="block text-sm">Subdominio</label>
+                        <input id="swal-new-company-subdomain" class="swal2-input" placeholder="Ej: pepe" />
+
+                        <div class="border-t pt-3 mt-3"></div>
+                        <label class="block text-sm">Usuario admin</label>
+                        <input id="swal-new-admin-user" class="swal2-input" placeholder="Ej: admin" />
+
+                        <label class="block text-sm">Contraseña admin</label>
+                        <input id="swal-new-admin-pass" type="password" class="swal2-input" placeholder="Contraseña" />
+                    </div>
+                `,
+                showCancelButton: true,
+                confirmButtonText: 'Crear',
+                preConfirm: () => {
+                    const companyName = document.getElementById('swal-new-company-name').value;
+                    const subdomain = document.getElementById('swal-new-company-subdomain').value;
+                    const adminUsername = document.getElementById('swal-new-admin-user').value;
+                    const adminPassword = document.getElementById('swal-new-admin-pass').value;
+                    if (!companyName || !subdomain || !adminUsername || !adminPassword) {
+                        Swal.showValidationMessage('Rellena todos los campos');
+                        return;
+                    }
+                    return [companyName, subdomain, adminUsername, adminPassword];
+                }
+            });
+
+            if (!formValues) return;
+            const [companyName, subdomain, adminUsername, adminPassword] = formValues;
+
+            const token = getToken();
+            const res = await fetch('/api/superadmin/companies', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ companyName, subdomain, adminUsername, adminPassword })
+            });
+            const data = await res.json();
+
+            if (!res.ok) {
+                Swal.fire('Error', data.error || 'No se pudo crear la empresa', 'error');
+                return;
+            }
+
+            Swal.fire('Creada', 'Empresa creada correctamente', 'success');
+            loadCompanies();
+        }
+
+        function logout() {
+            clearToken();
+            window.location.href = '/superadmin.html';
+        }
+
+        // Init
+        loadCompanies();
+    </script>
+</body>
+
+</html>

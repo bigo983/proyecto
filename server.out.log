@@ -1,0 +1,16 @@
+
+╔════════════════════════════════════════════════════╗
+║  🚀 Servidor HTTPS ejecutándose en puerto 3000      ║
+║  📱 Local: https://localhost:3000                 ║
+║  🌐 Red:   https://10.177.123.16:3000          ║
+╚════════════════════════════════════════════════════╝
+
+✅ La geolocalización funcionará correctamente
+⚠️  IMPORTANTE: Debes aceptar el certificado en el navegador:
+
+   1. Abre https://localhost:3000
+   2. Click en "Avanzado" o "Advanced"
+   3. Click en "Continuar a localhost" o "Proceed to localhost"
+
+   📱 En móvil/tablet: Haz lo mismo con https://10.177.123.16:3000
+
