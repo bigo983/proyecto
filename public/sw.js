@@ -6,6 +6,8 @@ const urlsToCache = [
 ];
 
 self.addEventListener('install', (event) => {
+  // Activate the new service worker as soon as it's finished installing.
+  self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
       console.log('Service Worker: Cache abierto');
@@ -24,7 +26,7 @@ self.addEventListener('activate', (event) => {
           }
         })
       );
-    })
+    }).then(() => self.clients.claim())
   );
 });
 
@@ -65,9 +67,11 @@ self.addEventListener('fetch', (event) => {
         const responseToCache = response.clone();
         caches.open(CACHE_NAME).then((cache) => {
           try {
-            cache.put(event.request, responseToCache);
+            // cache.put() returns a Promise; always handle rejections to avoid
+            // "Uncaught (in promise)" noise.
+            cache.put(event.request, responseToCache).catch(() => {});
           } catch (_) {
-            // If caching fails (shouldn't happen for same-origin http/s), ignore.
+            // If caching throws synchronously, ignore.
           }
         });
 

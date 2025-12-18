@@ -227,8 +227,14 @@ app.use(async (req, res, next) => {
 // Estado de empresa (según tenancy) para que el frontend pueda ocultar opciones.
 app.get('/api/company/status', async (req, res) => {
   try {
-    if (!req.company) return res.status(404).json({ error: 'Empresa no encontrada' });
+    if (!req.company) {
+      // When browsing the bare domain (no subdomain / no ?company=), the frontend
+      // still calls this endpoint to decide whether to hide the QR login.
+      // Returning 200 avoids noisy 404s while keeping behavior (QR stays visible).
+      return res.json({ found: false, active: true });
+    }
     res.json({
+      found: true,
       id: req.company.id,
       name: req.company.name,
       subdomain: req.company.subdomain,
