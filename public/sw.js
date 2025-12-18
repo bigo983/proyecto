@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ficha-app-v1';
+const CACHE_NAME = 'ficha-app-v2';
 const urlsToCache = [
   '/',
   '/index.html',
@@ -33,6 +33,24 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  // Only handle http(s) requests. Browser extensions and internal schemes
+  // like chrome-extension:// cannot be cached and will throw.
+  let url;
+  try {
+    url = new URL(event.request.url);
+  } catch (_) {
+    return;
+  }
+
+  if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+    return;
+  }
+
+  // Only cache same-origin requests. Let the browser handle third-party/CDN.
+  if (url.origin !== self.location.origin) {
+    return;
+  }
+
   event.respondWith(
     caches.match(event.request).then((response) => {
       if (response) {
@@ -46,13 +64,21 @@ self.addEventListener('fetch', (event) => {
 
         const responseToCache = response.clone();
         caches.open(CACHE_NAME).then((cache) => {
-          cache.put(event.request, responseToCache);
+          try {
+            cache.put(event.request, responseToCache);
+          } catch (_) {
+            // If caching fails (shouldn't happen for same-origin http/s), ignore.
+          }
         });
 
         return response;
       });
     }).catch(() => {
-      return caches.match('/index.html');
+      // Only fall back to the app shell for navigations.
+      if (event.request.mode === 'navigate') {
+        return caches.match('/index.html');
+      }
+      throw new Error('Network error');
     })
   );
 });
