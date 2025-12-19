@@ -88,12 +88,37 @@ function startHttpsServer() {
   try {
     await sequelize.authenticate();
     await sequelize.sync({ alter: true });
+    await ensurePostgresIndexes();
     await seedPlatformSuperAdmin();
     startHttpsServer();
   } catch (err) {
     console.error('Error al conectar con la base de datos:', err);
   }
 })();
+
+async function ensurePostgresIndexes() {
+  try {
+    if (!sequelize.getDialect || sequelize.getDialect() !== 'postgres') return;
+
+    // Older runs may have created a global UNIQUE on users.username.
+    // That breaks multi-tenant because every company wants an "admin".
+    await sequelize.query(`DO $$
+    BEGIN
+      IF EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'users_username_key') THEN
+        ALTER TABLE users DROP CONSTRAINT users_username_key;
+      END IF;
+    END $$;`);
+
+    await sequelize.query(`CREATE UNIQUE INDEX IF NOT EXISTS users_company_id_username_key
+      ON users (company_id, username)
+      WHERE username IS NOT NULL;`);
+
+    await sequelize.query(`CREATE UNIQUE INDEX IF NOT EXISTS config_company_id_key
+      ON config (company_id);`);
+  } catch (err) {
+    console.warn('⚠️ No se pudieron asegurar índices PostgreSQL:', err.message || err);
+  }
+}
 
 // Secret key para JWT (en producción SIEMPRE por variable de entorno)
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-insecure-jwt-secret-change-me';
@@ -106,26 +131,37 @@ async function seedPlatformSuperAdmin() {
   try {
     let admin = await PlatformAdmin.findOne({ where: { username: 'superadmin' } });
     if (!admin) {
-      const hashedPassword = await bcrypt.hash('admin123', 10);
+      const plain = String(process.env.SUPERADMIN_PASSWORD || '123456');
+      const hashedPassword = await bcrypt.hash(plain, 10);
       admin = await PlatformAdmin.create({
         nombre: 'Super Admin',
         username: 'superadmin',
         password: hashedPassword
       });
-      console.log('✅ Platform Super Admin created: superadmin / admin123');
+      console.log(`✅ Platform Super Admin created: superadmin / ${plain}`);
     }
 
     // Reset opcional de contraseña (solo bajo flag) para recuperar acceso en dev
     const resetFlag = String(process.env.RESET_SUPERADMIN_PASSWORD || '').toLowerCase();
     const shouldReset = resetFlag === '1' || resetFlag === 'true' || resetFlag === 'yes';
     if (shouldReset) {
-      admin.password = await bcrypt.hash('admin123', 10);
+      const plain = String(process.env.SUPERADMIN_PASSWORD || '123456');
+      admin.password = await bcrypt.hash(plain, 10);
       await admin.save();
-      console.log('🔐 Platform Super Admin password reset: superadmin / admin123');
+      console.log(`🔐 Platform Super Admin password reset: superadmin / ${plain}`);
     }
   } catch (err) {
     console.error('Error seeding Platform Super Admin:', err);
   }
+}
+
+function uniqueConstraintMessage(err) {
+  // SequelizeUniqueConstraintError usually provides `errors` with `path`.
+  const paths = Array.isArray(err?.errors) ? err.errors.map(e => String(e.path || '')).filter(Boolean) : [];
+  if (paths.includes('subdomain')) return 'El subdominio ya existe';
+  if (paths.includes('username')) return 'El usuario admin ya existe (elige otro)';
+  if (paths.includes('email')) return 'El email ya existe (elige otro)';
+  return 'Conflicto de datos: ya existe un registro con esos valores';
 }
 
 // Configurar multer para subir archivos
@@ -451,7 +487,7 @@ app.post('/api/register-company', requireSuperAdmin, async (req, res) => {
   } catch (err) {
     await t.rollback();
     if (err.name === 'SequelizeUniqueConstraintError') {
-      return res.status(400).json({ error: 'El subdominio ya existe' });
+      return res.status(400).json({ error: uniqueConstraintMessage(err) });
     }
     res.status(500).json({ error: err.message });
   }
@@ -509,7 +545,7 @@ app.post('/api/superadmin/companies', requireSuperAdmin, async (req, res) => {
   } catch (err) {
     await t.rollback();
     if (err.name === 'SequelizeUniqueConstraintError') {
-      return res.status(400).json({ error: 'El subdominio ya existe' });
+      return res.status(400).json({ error: uniqueConstraintMessage(err) });
     }
     res.status(500).json({ error: err.message });
   }
