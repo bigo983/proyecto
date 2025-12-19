@@ -44,7 +44,7 @@
         .then((reg) => {
           console.log('✓ Service Worker registrado');
           // Ask the browser to check for an updated SW script immediately.
-          try { reg.update(); } catch (_) {}
+          try { reg.update(); } catch (_) { }
         })
         .catch(err => console.error('Error al registrar Service Worker:', err));
     }
@@ -58,7 +58,8 @@
     const companyFromQuery = (urlParams.get('company') || '').toLowerCase().trim();
     const hostParts = window.location.hostname.split('.');
     const companyFromHost = hostParts.length > 2 && hostParts[0] !== 'www' ? hostParts[0].toLowerCase().trim() : '';
-    const COMPANY_SUBDOMAIN = companyFromHost || companyFromQuery || '';
+    const companyFromStorage = localStorage.getItem('company_subdomain') || '';
+    const COMPANY_SUBDOMAIN = companyFromHost || companyFromQuery || companyFromStorage || '';
 
     (function patchFetchForCompany() {
       if (!COMPANY_SUBDOMAIN || !window.fetch) return;
@@ -186,6 +187,11 @@
 
         // Guardar token y usuario
         localStorage.setItem('fichaapp_token', data.token);
+
+        if (data.user.company && data.user.company.subdomain) {
+          localStorage.setItem('company_subdomain', data.user.company.subdomain);
+          // Also update the global variable if it was empty, might need a reload in some architectures but here we rely on fetch patch
+        }
         currentUser = data.user;
 
         if (currentUser.rol === 'admin') {

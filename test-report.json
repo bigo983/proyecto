@@ -1,13 +1,13 @@
 {
-  "fecha": "2025-12-17T08:36:57.855Z",
-  "total": 33,
-  "pasados": 30,
-  "fallados": 3,
-  "porcentaje": 90.9,
+  "fecha": "2025-12-19T08:30:07.046Z",
+  "total": 22,
+  "pasados": 14,
+  "fallados": 8,
+  "porcentaje": 63.6,
   "resultados": [
     {
       "name": "Servidor HTTPS activo",
-      "passed": true,
+      "passed": false,
       "details": ""
     },
     {
@@ -21,88 +21,33 @@
       "details": ""
     },
     {
-      "name": "GET /api/users responde",
-      "passed": true,
-      "details": ""
-    },
-    {
-      "name": "Retorna array de usuarios",
-      "passed": true,
-      "details": ""
-    },
-    {
-      "name": "Usuarios tienen estructura correcta",
-      "passed": true,
-      "details": ""
-    },
-    {
-      "name": "Existe al menos 1 admin",
-      "passed": true,
-      "details": ""
-    },
-    {
-      "name": "Existe al menos 1 empleado",
-      "passed": true,
-      "details": ""
-    },
-    {
-      "name": "GET /api/horarios responde",
-      "passed": true,
-      "details": ""
-    },
-    {
-      "name": "Retorna array de horarios",
-      "passed": true,
-      "details": ""
-    },
-    {
-      "name": "Horarios tienen estructura correcta",
-      "passed": true,
-      "details": ""
-    },
-    {
-      "name": "Crear primer turno",
-      "passed": true,
-      "details": ""
-    },
-    {
-      "name": "Crear segundo turno (doble turno)",
-      "passed": true,
-      "details": ""
-    },
-    {
-      "name": "Sistema soporta múltiples turnos por día",
-      "passed": true,
-      "details": ""
-    },
-    {
-      "name": "GET /api/config responde",
-      "passed": true,
-      "details": ""
-    },
-    {
-      "name": "Configuración tiene estructura correcta",
+      "name": "API de usuarios funcional",
       "passed": false,
       "details": ""
     },
     {
-      "name": "GET /api/stats responde",
-      "passed": true,
-      "details": ""
-    },
-    {
-      "name": "Estadísticas tienen estructura correcta",
+      "name": "API de horarios funcional",
       "passed": false,
       "details": ""
     },
     {
-      "name": "GET /api/logs responde",
-      "passed": true,
+      "name": "Funcionalidad doble turno",
+      "passed": false,
       "details": ""
     },
     {
-      "name": "Retorna array de logs",
-      "passed": true,
+      "name": "API de configuración funcional",
+      "passed": false,
+      "details": ""
+    },
+    {
+      "name": "API de estadísticas funcional",
+      "passed": false,
+      "details": ""
+    },
+    {
+      "name": "API de logs funcional",
+      "passed": false,
       "details": ""
     },
     {

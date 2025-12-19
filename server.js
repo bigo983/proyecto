@@ -709,7 +709,12 @@ app.post('/api/login', rateLimitLogin, async (req, res) => {
         nombre: user.nombre,
         username: user.username,
         email: user.email,
-        rol: user.rol
+        rol: user.rol,
+        company: {
+          id: req.company.id,
+          subdomain: req.company.subdomain,
+          name: req.company.name
+        }
       }
     });
   } catch (err) {
@@ -905,10 +910,10 @@ app.get('/api/stats', async (req, res) => {
 
     const users = topUserIds.length
       ? await User.findAll({
-          where: { id: topUserIds, company_id: req.company.id },
-          attributes: ['id', 'nombre'],
-          raw: true
-        })
+        where: { id: topUserIds, company_id: req.company.id },
+        attributes: ['id', 'nombre'],
+        raw: true
+      })
       : [];
 
     const userNameById = new Map(users.map((u) => [u.id, u.nombre]));
