@@ -15,6 +15,12 @@ const { Op } = require('sequelize');
 const app = express();
 const PORT = 3000;
 
+// If running behind a reverse proxy (Caddy), trust X-Forwarded-* headers.
+// This is important for correct scheme/secure detection and logging.
+if (String(process.env.TRUST_PROXY || '').toLowerCase() === '1' || String(process.env.TRUST_PROXY || '').toLowerCase() === 'true') {
+  app.set('trust proxy', 1);
+}
+
 // Hardening básico
 app.disable('x-powered-by');
 
@@ -167,6 +173,23 @@ app.use(bodyParser.json());
 
 // === MIDDLEWARE MULTI-TENANCY ===
 app.use(async (req, res, next) => {
+  function getCookieValue(name) {
+    const header = req.headers.cookie;
+    if (!header) return null;
+    const parts = header.split(';');
+    for (const part of parts) {
+      const [k, ...rest] = part.trim().split('=');
+      if (k === name) {
+        try {
+          return decodeURIComponent(rest.join('=') || '');
+        } catch (_) {
+          return rest.join('=') || '';
+        }
+      }
+    }
+    return null;
+  }
+
   // Ignorar assets estáticos y endpoints globales
   if (
     req.path.startsWith('/api/register-company') ||
@@ -200,13 +223,32 @@ app.use(async (req, res, next) => {
     }
   }
 
+  // Prioridad 2.5: Cookie (persist company selection across API calls)
+  // Useful when browsing the bare domain with ?company=... (query is not
+  // automatically sent with fetch calls).
+  if (!subdomain) {
+    const cookieCompany = getCookieValue('company');
+    if (cookieCompany) subdomain = cookieCompany;
+  }
+
+  // If query param is present, persist it in a secure cookie.
+  // (We do it even if company doesn't exist yet; resolution happens below.)
+  if (req.query.company) {
+    const val = encodeURIComponent(String(req.query.company).toLowerCase().trim());
+    const secure = req.secure || (req.headers['x-forwarded-proto'] === 'https');
+    const cookieParts = [`company=${val}`, 'Path=/', 'SameSite=Lax', 'HttpOnly'];
+    if (secure) cookieParts.push('Secure');
+    res.setHeader('Set-Cookie', cookieParts.join('; '));
+  }
+
   // Fallback para localhost (Solo Desarrollo): Usar 'demo' o la primera empresa
   if (!subdomain && (host.includes('localhost') || host.includes('127.0.0.1'))) {
     subdomain = 'demo'; // Asumimos 'demo' para localhost por defecto
   }
 
   if (subdomain) {
-    req.company = await Company.findOne({ where: { subdomain } });
+    const normalized = String(subdomain).toLowerCase().trim();
+    req.company = await Company.findOne({ where: { subdomain: normalized } });
   }
 
   // Si la empresa está desactivada, bloquea la API (mantén el frontend accesible)
@@ -300,24 +342,100 @@ function haversineDistance(lat1, lon1, lat2, lon2) {
   return R * c;
 }
 
+function slugifySubdomain(input) {
+  const raw = String(input || '').trim().toLowerCase();
+  const ascii = raw
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+
+  const cleaned = ascii
+    .replace(/[^a-z0-9\s-]/g, '')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '');
+
+  // Keep it reasonably short (DNS label max 63 chars).
+  return cleaned.slice(0, 50) || '';
+}
+
+async function generateUniqueSubdomain(base) {
+  const reservedSubdomains = new Set(['admin', 'www']);
+  const baseSlug = slugifySubdomain(base) || 'empresa';
+
+  // If the slug is reserved, start with a safe prefix.
+  const baseCandidate = reservedSubdomains.has(baseSlug) ? `empresa-${baseSlug}` : baseSlug;
+
+  for (let i = 0; i < 500; i += 1) {
+    const candidate = i === 0 ? baseCandidate : `${baseCandidate}-${i + 1}`;
+    if (reservedSubdomains.has(candidate)) continue;
+    // eslint-disable-next-line no-await-in-loop
+    const exists = await Company.findOne({ where: { subdomain: candidate } });
+    if (!exists) return candidate;
+  }
+
+  // Last resort, should basically never happen.
+  return `${baseCandidate}-${Date.now()}`.slice(0, 50);
+}
+
+function baseDomain() {
+  return String(process.env.BASE_DOMAIN || 'agendaloya.es').toLowerCase().trim();
+}
+
+// Endpoint used by Caddy On-Demand TLS to authorize certificate issuance.
+// Configure Caddy: on_demand_tls { ask http://127.0.0.1:3000/api/tls/ask }
+app.get('/api/tls/ask', async (req, res) => {
+  try {
+    const remote = (req.ip || req.socket.remoteAddress || '').toString();
+    const isLocal = remote.includes('127.0.0.1') || remote.includes('::1') || remote.includes('::ffff:127.0.0.1');
+    if (!isLocal) {
+      return res.status(403).send('forbidden');
+    }
+
+    const domain = String(req.query.domain || '').toLowerCase().trim();
+    const root = baseDomain();
+
+    if (!domain) return res.status(400).send('missing domain');
+    if (domain === root || domain === `www.${root}`) return res.status(200).send('ok');
+
+    const suffix = `.${root}`;
+    if (!domain.endsWith(suffix)) return res.status(403).send('forbidden');
+
+    const labelPart = domain.slice(0, -suffix.length);
+    // Only allow one-label subdomains: <company>.agendaloya.es
+    if (!labelPart || labelPart.includes('.')) return res.status(403).send('forbidden');
+
+    const reservedSubdomains = new Set(['admin', 'www']);
+    if (reservedSubdomains.has(labelPart)) return res.status(403).send('forbidden');
+
+    const company = await Company.findOne({ where: { subdomain: labelPart } });
+    if (!company) return res.status(403).send('forbidden');
+
+    return res.status(200).send('ok');
+  } catch (_) {
+    return res.status(500).send('error');
+  }
+});
+
 // === REGISTRO DE EMPRESA (SAAS) ===
 // ⚠️ Cerrado al público: solo SuperAdmin (plataforma)
 app.post('/api/register-company', requireSuperAdmin, async (req, res) => {
   const { companyName, subdomain, adminName, adminUsername, adminPassword } = req.body;
 
-  if (!companyName || !subdomain || !adminUsername || !adminPassword) {
-    return res.status(400).json({ error: 'Faltan datos requeridos (Empresa, Subdominio, Admin Usuario/Pass)' });
+  if (!companyName || !adminUsername || !adminPassword) {
+    return res.status(400).json({ error: 'Faltan datos requeridos (Empresa, Admin Usuario/Pass)' });
   }
 
   const reservedSubdomains = new Set(['admin', 'www']);
-  const normalizedSubdomain = String(subdomain).toLowerCase().trim();
-  if (reservedSubdomains.has(normalizedSubdomain)) {
-    return res.status(400).json({ error: `El subdominio "${normalizedSubdomain}" está reservado` });
+  const requested = subdomain ? slugifySubdomain(subdomain) : '';
+  if (requested && reservedSubdomains.has(requested)) {
+    return res.status(400).json({ error: `El subdominio "${requested}" está reservado` });
   }
 
   const t = await sequelize.transaction();
 
   try {
+    const normalizedSubdomain = requested || (await generateUniqueSubdomain(companyName));
+
     // 1. Crear Empresa
     const company = await Company.create({
       name: companyName,
@@ -344,7 +462,14 @@ app.post('/api/register-company', requireSuperAdmin, async (req, res) => {
     }, { transaction: t });
 
     await t.commit();
-    res.json({ success: true, message: 'Empresa registrada exitosamente', companyId: company.id });
+    const root = baseDomain();
+    res.json({
+      success: true,
+      message: 'Empresa registrada exitosamente',
+      companyId: company.id,
+      subdomain: company.subdomain,
+      url: `https://${company.subdomain}.${root}`
+    });
 
   } catch (err) {
     await t.rollback();
@@ -359,18 +484,20 @@ app.post('/api/register-company', requireSuperAdmin, async (req, res) => {
 app.post('/api/superadmin/companies', requireSuperAdmin, async (req, res) => {
   const { companyName, subdomain, adminName, adminUsername, adminPassword } = req.body;
 
-  if (!companyName || !subdomain || !adminUsername || !adminPassword) {
-    return res.status(400).json({ error: 'Faltan datos requeridos (Empresa, Subdominio, Admin Usuario/Pass)' });
+  if (!companyName || !adminUsername || !adminPassword) {
+    return res.status(400).json({ error: 'Faltan datos requeridos (Empresa, Admin Usuario/Pass)' });
   }
 
   const reservedSubdomains = new Set(['admin', 'www']);
-  const normalizedSubdomain = String(subdomain).toLowerCase().trim();
-  if (reservedSubdomains.has(normalizedSubdomain)) {
-    return res.status(400).json({ error: `El subdominio "${normalizedSubdomain}" está reservado` });
+  const requested = subdomain ? slugifySubdomain(subdomain) : '';
+  if (requested && reservedSubdomains.has(requested)) {
+    return res.status(400).json({ error: `El subdominio "${requested}" está reservado` });
   }
 
   const t = await sequelize.transaction();
   try {
+    const normalizedSubdomain = requested || (await generateUniqueSubdomain(companyName));
+
     const company = await Company.create({
       name: companyName,
       subdomain: normalizedSubdomain
@@ -394,7 +521,14 @@ app.post('/api/superadmin/companies', requireSuperAdmin, async (req, res) => {
     }, { transaction: t });
 
     await t.commit();
-    res.json({ success: true, message: 'Empresa creada', companyId: company.id });
+    const root = baseDomain();
+    res.json({
+      success: true,
+      message: 'Empresa creada',
+      companyId: company.id,
+      subdomain: company.subdomain,
+      url: `https://${company.subdomain}.${root}`
+    });
   } catch (err) {
     await t.rollback();
     if (err.name === 'SequelizeUniqueConstraintError') {
@@ -699,6 +833,7 @@ app.post('/api/config', async (req, res) => {
   const { lat, lon, maxDistance, address, metodo_fichaje, qr_duracion, qr_pin } = req.body;
 
   try {
+    if (!req.company) return res.status(404).json({ error: 'Empresa no encontrada' });
     let config = await Config.findOne({ where: { company_id: req.company.id } }); // SCOPED
     if (config) {
       await config.update({
@@ -736,6 +871,7 @@ app.post('/api/config', async (req, res) => {
 // Endpoint GET /api/stats
 app.get('/api/stats', async (req, res) => {
   try {
+    if (!req.company) return res.status(404).json({ error: 'Empresa no encontrada' });
     const total = await Log.count({ where: { company_id: req.company.id } });
     const totalEntradas = await Log.count({ where: { tipo: 'ENTRADA', company_id: req.company.id } });
     const totalSalidas = await Log.count({ where: { tipo: 'SALIDA', company_id: req.company.id } });
