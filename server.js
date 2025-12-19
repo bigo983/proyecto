@@ -9,7 +9,7 @@ const OpenAI = require('openai');
 const QRCode = require('qrcode');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
-const { sequelize, User, Log, Horario, Config, initDb } = require('./database/db');
+const { sequelize, User, Log, Schedule, Config, Company, PlatformAdmin } = require('./database/models');
 const { Op } = require('sequelize');
 
 const app = express();
@@ -82,10 +82,13 @@ function startHttpsServer() {
 }
 
 
-// Inicializar base de datos y arrancar servidor
+// Sincronizar base de datos y arrancar servidor (solo HTTPS)
+// Nota: En PostgreSQL, sync/alter es más seguro que en SQLite.
 (async () => {
   try {
-    await initDb();
+    await sequelize.authenticate();
+    await sequelize.sync({ alter: true });
+    await seedPlatformSuperAdmin();
     startHttpsServer();
   } catch (err) {
     console.error('Error al conectar con la base de datos:', err);

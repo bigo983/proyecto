@@ -1,18 +1,28 @@
 const { Sequelize, DataTypes } = require('sequelize');
 const path = require('path');
 
+function shouldUsePostgresSsl(databaseUrl) {
+    const force = String(process.env.DB_SSL || process.env.PGSSLMODE || '').toLowerCase();
+    if (force === '1' || force === 'true' || force === 'require') return true;
+    if (!databaseUrl) return false;
+    // Local postgres typically doesn't use TLS.
+    return !/localhost|127\.0\.0\.1/.test(databaseUrl);
+}
+
 // Configuración de la conexión
 // Si hay DATABASE_URL usa PostgreSQL (Producción), si no, usa SQLite local.
 const sequelize = process.env.DATABASE_URL
     ? new Sequelize(process.env.DATABASE_URL, {
         dialect: 'postgres',
         logging: false,
-        dialectOptions: {
-            ssl: {
-                require: true,
-                rejectUnauthorized: false
+        dialectOptions: shouldUsePostgresSsl(process.env.DATABASE_URL)
+            ? {
+                ssl: {
+                    require: true,
+                    rejectUnauthorized: false
+                }
             }
-        }
+            : undefined
     })
     : new Sequelize({
         dialect: 'sqlite',
@@ -28,7 +38,6 @@ const Company = sequelize.define('Company', {
     plan: { type: DataTypes.STRING, defaultValue: 'free' }, // free, basic, pro
     active: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: true }
 }, {
-    tableName: 'companies',
     tableName: 'companies',
     timestamps: true
 });
