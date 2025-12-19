@@ -404,6 +404,44 @@ function baseDomain() {
   return String(process.env.BASE_DOMAIN || 'agendaloya.es').toLowerCase().trim();
 }
 
+// --- Cloudflare DNS helpers (optional) ---
+// If you manage per-company DNS records (instead of a wildcard), set
+// `CF_API_TOKEN` and `CF_ZONE_ID` in the environment. The token must have
+// permissions to read/delete DNS records for the zone.
+async function deleteCloudflareDNSRecords(subdomain) {
+  try {
+    const token = process.env.CF_API_TOKEN;
+    const zoneId = process.env.CF_ZONE_ID;
+    if (!token || !zoneId) return; // nothing to do
+
+    const name = `${subdomain}.${baseDomain()}`;
+    const listRes = await fetch(`https://api.cloudflare.com/client/v4/zones/${zoneId}/dns_records?name=${encodeURIComponent(name)}`, {
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }
+    });
+    const listJson = await listRes.json();
+    if (!listJson.success) {
+      console.warn('Cloudflare list dns failed', listJson);
+      return;
+    }
+
+    for (const r of listJson.result || []) {
+      try {
+        const delRes = await fetch(`https://api.cloudflare.com/client/v4/zones/${zoneId}/dns_records/${r.id}`, {
+          method: 'DELETE',
+          headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }
+        });
+        const delJson = await delRes.json();
+        if (!delJson.success) console.warn('Cloudflare delete failed', r, delJson);
+        else console.log(`Cloudflare DNS record deleted for ${name} id ${r.id}`);
+      } catch (err) {
+        console.warn('Cloudflare delete record error', err);
+      }
+    }
+  } catch (err) {
+    console.warn('Error deleting CF DNS records', err);
+  }
+}
+
 // Endpoint used by Caddy On-Demand TLS to authorize certificate issuance.
 // Configure Caddy: on_demand_tls { ask http://127.0.0.1:3000/api/tls/ask }
 app.get('/api/tls/ask', async (req, res) => {
@@ -651,6 +689,15 @@ app.delete('/api/superadmin/companies/:id', requireSuperAdmin, async (req, res) 
     await Schedule.destroy({ where: { company_id: id } });
     await Config.destroy({ where: { company_id: id } });
     await company.destroy();
+
+    // If you manage per-company DNS entries in Cloudflare (not using wildcard),
+    // attempt to remove DNS records for the subdomain. This is optional and
+    // requires setting CF_API_TOKEN and CF_ZONE_ID in env with appropriate perms.
+    try {
+      await deleteCloudflareDNSRecords(company.subdomain);
+    } catch (err) {
+      console.warn('Failed to clean Cloudflare DNS for subdomain', company.subdomain, err);
+    }
 
     res.json({ success: true, message: 'Empresa eliminada' });
   } catch (error) {
