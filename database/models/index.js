@@ -49,6 +49,7 @@ const User = sequelize.define('User', {
 
 const Log = sequelize.define('Log', {
     company_id: { type: DataTypes.INTEGER, allowNull: false },
+    user_id: { type: DataTypes.INTEGER, allowNull: true },
     tipo: { type: DataTypes.STRING, allowNull: false }, // ENTRADA o SALIDA
     fecha: { type: DataTypes.DATE, defaultValue: DataTypes.NOW },
     lat: { type: DataTypes.FLOAT },

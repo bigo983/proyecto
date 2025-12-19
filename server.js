@@ -883,18 +883,33 @@ app.get('/api/stats', async (req, res) => {
       where: { company_id: req.company.id }
     });
 
-    const topLogs = await Log.findAll({
-      where: { company_id: req.company.id }, // SCOPED
+    // SQLite can be picky with GROUP BY + JOIN/INCLUDE. Do it in two steps.
+    const topCounts = await Log.findAll({
+      where: { company_id: req.company.id },
       attributes: ['user_id', [sequelize.fn('COUNT', sequelize.col('id')), 'fichajes']],
-      include: [{ model: User, attributes: ['nombre'] }],
-      group: ['user_id', 'User.id', 'User.nombre'],
+      group: ['user_id'],
       order: [[sequelize.literal('fichajes'), 'DESC']],
-      limit: 5
+      limit: 5,
+      raw: true
     });
 
-    const topEmpleados = topLogs.map(t => ({
-      nombre: t.User ? t.User.nombre : 'Unknown',
-      fichajes: t.get('fichajes')
+    const topUserIds = topCounts
+      .map((row) => row.user_id)
+      .filter((id) => id !== null && id !== undefined);
+
+    const users = topUserIds.length
+      ? await User.findAll({
+          where: { id: topUserIds, company_id: req.company.id },
+          attributes: ['id', 'nombre'],
+          raw: true
+        })
+      : [];
+
+    const userNameById = new Map(users.map((u) => [u.id, u.nombre]));
+
+    const topEmpleados = topCounts.map((row) => ({
+      nombre: userNameById.get(row.user_id) || 'Unknown',
+      fichajes: Number(row.fichajes || 0)
     }));
 
     res.json({
