@@ -59,10 +59,17 @@
     const hostParts = window.location.hostname.split('.');
     const companyFromHost = hostParts.length > 2 && hostParts[0] !== 'www' ? hostParts[0].toLowerCase().trim() : '';
     const companyFromStorage = localStorage.getItem('company_subdomain') || '';
+    console.log('DEBUG: Init Context', { companyFromHost, companyFromQuery, companyFromStorage });
     const COMPANY_SUBDOMAIN = companyFromHost || companyFromQuery || companyFromStorage || '';
+    console.log('DEBUG: COMPANY_SUBDOMAIN resolved to:', COMPANY_SUBDOMAIN);
 
     (function patchFetchForCompany() {
-      if (!COMPANY_SUBDOMAIN || !window.fetch) return;
+      console.log('DEBUG: patchFetchForCompany running. Subdomain:', COMPANY_SUBDOMAIN);
+      if (!COMPANY_SUBDOMAIN || !window.fetch) {
+        console.warn('DEBUG: Skipping fetch patch because subdomain is missing or fetch not supported');
+        return;
+      }
+      console.log('DEBUG: Fetch patched successfully for subdomain:', COMPANY_SUBDOMAIN);
       const originalFetch = window.fetch.bind(window);
 
       window.fetch = (input, init) => {
@@ -76,6 +83,7 @@
           if (url.origin === window.location.origin && url.pathname.startsWith('/api/')) {
             const headers = new Headers(reqInit.headers || (typeof input !== 'string' ? input.headers : undefined) || {});
             if (!headers.has('x-company-subdomain')) {
+              console.log('DEBUG: Injecting x-company-subdomain header:', COMPANY_SUBDOMAIN);
               headers.set('x-company-subdomain', COMPANY_SUBDOMAIN);
             }
             reqInit.headers = headers;
@@ -186,11 +194,15 @@
         }
 
         // Guardar token y usuario
+        console.log('DEBUG: Login successful. Response data:', data);
         localStorage.setItem('fichaapp_token', data.token);
 
         if (data.user.company && data.user.company.subdomain) {
+          console.log('DEBUG: Saving company subdomain to storage:', data.user.company.subdomain);
           localStorage.setItem('company_subdomain', data.user.company.subdomain);
           // Also update the global variable if it was empty, might need a reload in some architectures but here we rely on fetch patch
+        } else {
+          console.error('DEBUG: Login response missing company subdomain!', data);
         }
         currentUser = data.user;
 
