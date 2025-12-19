@@ -254,6 +254,16 @@ app.use(async (req, res, next) => {
     res.setHeader('Set-Cookie', cookieParts.join('; '));
   }
 
+  // If header is present, persist it too (helps when navigating to pages
+  // without ?company=... like /dashboard.html).
+  if (req.headers['x-company-subdomain']) {
+    const val = encodeURIComponent(String(req.headers['x-company-subdomain']).toLowerCase().trim());
+    const secure = req.secure || (req.headers['x-forwarded-proto'] === 'https');
+    const cookieParts = [`company=${val}`, 'Path=/', 'SameSite=Lax', 'HttpOnly'];
+    if (secure) cookieParts.push('Secure');
+    res.setHeader('Set-Cookie', cookieParts.join('; '));
+  }
+
   // Fallback para localhost (Solo Desarrollo): Usar 'demo' o la primera empresa
   if (!subdomain && (hostWithoutPort.includes('localhost') || hostWithoutPort.includes('127.0.0.1') || hostWithoutPort === '::1')) {
     subdomain = 'demo'; // Asumimos 'demo' para localhost por defecto
@@ -1136,6 +1146,7 @@ app.get('/api/horarios', async (req, res) => {
   const { userId, expandir } = req.query;
 
   try {
+    if (!req.company) return res.status(404).json({ error: 'Empresa no encontrada' });
     const whereClause = userId ? { user_id: userId, company_id: req.company.id } : { company_id: req.company.id }; // SCOPED
     const schedules = await Schedule.findAll({
       where: whereClause,
@@ -1170,6 +1181,7 @@ app.post('/api/horarios', async (req, res) => {
   }
 
   try {
+    if (!req.company) return res.status(404).json({ error: 'Empresa no encontrada' });
     const schedule = await Schedule.create({
       company_id: req.company.id, // SCOPED
       user_id, dia_semana, hora_inicio, hora_fin, fecha_desde, fecha_hasta,
@@ -1190,6 +1202,7 @@ app.post('/api/horarios', async (req, res) => {
 app.delete('/api/horarios/:id', async (req, res) => {
   const { id } = req.params;
   try {
+    if (!req.company) return res.status(404).json({ error: 'Empresa no encontrada' });
     await Schedule.destroy({ where: { id, company_id: req.company.id } }); // SCOPED
     res.json({ success: true, message: 'Horario eliminado' });
   } catch (err) {
@@ -1201,6 +1214,7 @@ app.delete('/api/horarios/:id', async (req, res) => {
 app.delete('/api/horarios/user/:userId', async (req, res) => {
   const { userId } = req.params;
   try {
+    if (!req.company) return res.status(404).json({ error: 'Empresa no encontrada' });
     const deleted = await Schedule.destroy({ where: { user_id: userId, company_id: req.company.id } }); // SCOPED
     res.json({ success: true, message: `Eliminados ${deleted} horarios`, deleted });
   } catch (err) {
