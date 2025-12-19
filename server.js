@@ -9,7 +9,7 @@ const OpenAI = require('openai');
 const QRCode = require('qrcode');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
-const { sequelize, User, Log, Schedule, Config, Company, PlatformAdmin } = require('./database/models');
+const { sequelize, User, Log, Horario, Config, initDb } = require('./database/db');
 const { Op } = require('sequelize');
 
 const app = express();
@@ -81,45 +81,13 @@ function startHttpsServer() {
   });
 }
 
-// Sincronizar base de datos y arrancar servidor (solo HTTPS)
-// Nota: En SQLite, el modo alter puede requerir recrear tablas y chocar con FKs.
+
+// Inicializar base de datos y arrancar servidor
 (async () => {
   try {
-    const isSqlite = sequelize.getDialect && sequelize.getDialect() === 'sqlite';
-    if (isSqlite) {
-      await sequelize.query('PRAGMA foreign_keys = OFF;');
-
-      // Si hubo un sync alter fallido antes, Sequelize puede dejar tablas *_backup
-      // que rompen el siguiente intento (UNIQUE constraint). Las limpiamos.
-      const [backupTables] = await sequelize.query(
-        "SELECT name FROM sqlite_master WHERE type='table' AND name LIKE '%_backup';"
-      );
-      if (Array.isArray(backupTables) && backupTables.length) {
-        for (const row of backupTables) {
-          if (row && row.name) {
-            await sequelize.query(`DROP TABLE IF EXISTS \`${row.name}\`;`);
-          }
-        }
-      }
-    }
-
-    await sequelize.sync({ alter: true });
-
-    if (isSqlite) {
-      await sequelize.query('PRAGMA foreign_keys = ON;');
-    }
-
-    await seedPlatformSuperAdmin();
+    await initDb();
     startHttpsServer();
   } catch (err) {
-    try {
-      const isSqlite = sequelize.getDialect && sequelize.getDialect() === 'sqlite';
-      if (isSqlite) {
-        await sequelize.query('PRAGMA foreign_keys = ON;');
-      }
-    } catch (_) {
-      // noop
-    }
     console.error('Error al conectar con la base de datos:', err);
   }
 })();
