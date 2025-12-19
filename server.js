@@ -200,7 +200,9 @@ app.use(async (req, res, next) => {
   }
 
   let subdomain = null;
-  const host = req.headers.host;
+  const hostHeader = String(req.headers.host || '');
+  // Remove port if present (e.g. example.com:3000)
+  const hostWithoutPort = hostHeader.split(':')[0].toLowerCase();
 
   // Prioridad 1: Header (útil para testing)
   if (req.headers['x-company-subdomain']) {
@@ -216,9 +218,13 @@ app.use(async (req, res, next) => {
     subdomain = url.searchParams.get('company');
   }
   // Prioridad 2: Subdominio real
-  else if (host.includes('.')) {
-    const parts = host.split('.');
-    if (parts.length > 1 && parts[0] !== 'www' && parts[0] !== 'localhost') {
+  else if (hostWithoutPort.includes('.')) {
+    const parts = hostWithoutPort.split('.').filter(Boolean);
+    // Only treat the first label as a company subdomain when there is
+    // actually a subdomain (e.g. company.example.com). For apex domains
+    // like example.com, require the company context via ?company=, cookie,
+    // or x-company-subdomain header.
+    if (parts.length > 2 && parts[0] !== 'www' && parts[0] !== 'localhost') {
       subdomain = parts[0];
     }
   }
@@ -242,7 +248,7 @@ app.use(async (req, res, next) => {
   }
 
   // Fallback para localhost (Solo Desarrollo): Usar 'demo' o la primera empresa
-  if (!subdomain && (host.includes('localhost') || host.includes('127.0.0.1'))) {
+  if (!subdomain && (hostWithoutPort.includes('localhost') || hostWithoutPort.includes('127.0.0.1') || hostWithoutPort === '::1')) {
     subdomain = 'demo'; // Asumimos 'demo' para localhost por defecto
   }
 
