@@ -49,6 +49,44 @@
         .catch(err => console.error('Error al registrar Service Worker:', err));
     }
 
+    // --- Multi-tenant helper (company context) ---
+    // The backend expects a company subdomain context. When browsing via
+    // https://agendaloya.es/?company=pepe, normal fetch('/api/...') calls do not
+    // include the query param. To make the app reliable, we inject the company
+    // into a header on every same-origin /api/* request.
+    const urlParams = new URLSearchParams(window.location.search);
+    const companyFromQuery = (urlParams.get('company') || '').toLowerCase().trim();
+    const hostParts = window.location.hostname.split('.');
+    const companyFromHost = hostParts.length > 2 && hostParts[0] !== 'www' ? hostParts[0].toLowerCase().trim() : '';
+    const COMPANY_SUBDOMAIN = companyFromHost || companyFromQuery || '';
+
+    (function patchFetchForCompany() {
+      if (!COMPANY_SUBDOMAIN || !window.fetch) return;
+      const originalFetch = window.fetch.bind(window);
+
+      window.fetch = (input, init) => {
+        try {
+          const reqInit = init ? { ...init } : {};
+          const url = typeof input === 'string'
+            ? new URL(input, window.location.origin)
+            : new URL(input.url, window.location.origin);
+
+          // Only add header for same-origin API calls.
+          if (url.origin === window.location.origin && url.pathname.startsWith('/api/')) {
+            const headers = new Headers(reqInit.headers || (typeof input !== 'string' ? input.headers : undefined) || {});
+            if (!headers.has('x-company-subdomain')) {
+              headers.set('x-company-subdomain', COMPANY_SUBDOMAIN);
+            }
+            reqInit.headers = headers;
+            return originalFetch(input, reqInit);
+          }
+        } catch (_) {
+          // If anything goes wrong, fall back to default fetch behavior.
+        }
+        return originalFetch(input, init);
+      };
+    })();
+
     let currentUser = null;
     let users = [];
 
