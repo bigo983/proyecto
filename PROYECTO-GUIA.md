@@ -34,10 +34,14 @@ Aplicacion web de fichaje y gestion multi-tenant para empresas, con PWA y multi-
 - `Log`: fichajes con timestamps, usuario y empresa.
 Indices: unico `(company_id, username)` en users; filtrado siempre por `company_id` y subdomain.
 
-## 5. Multi-tenant (subdominios y headers)
+
+## 5. Multi-tenant y panel SuperAdmin
 - Cada empresa se identifica por subdominio (`pepe.agendaloya.es`).
 - El frontend (patch de fetch) envia header `x-company-subdomain` resuelto por host o query `?company=`; tambien persiste en cookie `company`.
 - El backend valida empresa activa por subdominio/header antes de operar; rutas sensibles requieren empresa valida.
+- El panel SuperAdmin **solo está disponible en el subdominio principal** (`agendaloya.es`), no como empresa ni como HTML estático. No aparece en la lista de empresas ni se gestiona como una empresa normal.
+- El acceso al panel SuperAdmin está **reservado únicamente para el usuario administrador** (PlatformAdmin, rol `superadmin`). Se verifica el token JWT antes de servir el panel.
+- Si se accede a `agendaloya.es` o rutas `/superadmin` sin estar autenticado como superadmin, se muestra "Acceso solo para SuperAdmin".
 
 ## 6. Seguridad basica
 - TLS: Cloudflare proxied + Caddy con Origin Cert (Full strict). Caddy hace proxy a Node en HTTPS interno con `tls_insecure_skip_verify`.

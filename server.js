@@ -317,6 +317,31 @@ app.get('/register.html', (req, res) => {
 });
 
 app.use(express.static(path.join(__dirname, 'public')));
+// Servir archivos estáticos (frontend)
+app.use((req, res, next) => {
+  // Si el host es agendaloya.es, servir el panel SuperAdmin
+  const host = req.headers.host?.toLowerCase() || '';
+  if (host === 'agendaloya.es' || host.startsWith('agendaloya.es:')) {
+    // Solo permitir acceso si está autenticado como superadmin
+    if (req.path === '/' || req.path === '/superadmin' || req.path.startsWith('/superadmin')) {
+      // Verificar token JWT en cookie o header
+      const token = req.headers.authorization?.replace('Bearer ', '') || req.cookies?.token;
+      let isSuperAdmin = false;
+      if (token) {
+        try {
+          const decoded = require('jsonwebtoken').verify(token, process.env.JWT_SECRET || 'supersecret');
+          isSuperAdmin = decoded && decoded.platform === true && decoded.rol === 'superadmin';
+        } catch (e) {}
+      }
+      if (!isSuperAdmin) {
+        return res.status(403).send('Acceso solo para SuperAdmin');
+      }
+      return res.sendFile(path.join(__dirname, 'public', 'superadmin.html'));
+    }
+  }
+  // Para el resto, servir el frontend normal
+  express.static(path.join(__dirname, 'public'))(req, res, next);
+});
 
 // Evitar ruido en consola si no hay favicon.ico (no es crítico para la app).
 app.get('/favicon.ico', (req, res) => {
@@ -658,7 +683,7 @@ app.get('/api/superadmin/companies', requireSuperAdmin, async (req, res) => {
   try {
     const companies = await Company.findAll({
       // No mostrar entradas reservadas/legacy del antiguo superadmin-por-empresa
-      where: { subdomain: { [Op.ne]: 'admin' } },
+      where: { subdomain: { [Op.notIn]: ['admin', 'superadmin', 'agendaloya'] } },
       order: [['createdAt', 'DESC']]
     });
     // Add User count for each company
