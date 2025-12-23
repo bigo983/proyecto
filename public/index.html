@@ -1748,7 +1748,7 @@
                       </tr>
                     </thead>
                     <tbody>
-                      ${logs.length === 0 ? '<tr><td colspan="5" class="p-3 text-center text-gray-500">No hay registros</td></tr>' :
+                      ${logs.length === 0 ? '<tr><td colspan="6" class="p-3 text-center text-gray-500">No hay registros</td></tr>' :
             logs.map(log => {
               const esQR = log.lat === 0 && log.lon === 0;
               let metodoBadge = '';
@@ -1789,7 +1789,9 @@
                 '<td class="p-3 text-center" style="vertical-align: middle;">' + metodoBadge + '</td>' +
                 '<td class="p-3 text-center" style="vertical-align: middle;">' +
                   (log.foto_url ? `<a href="${log.foto_url}" target="_blank" class="inline-flex items-center gap-2">
-                    <img src="${log.foto_url}" alt="foto" class="w-14 h-14 object-cover rounded border" />
+                    <span class="inline-block w-16 h-16 rounded border overflow-hidden bg-slate-100">
+                      <img src="${log.foto_url}" alt="foto" class="w-full h-full object-cover" />
+                    </span>
                   </a>` : '<span class="text-xs text-slate-400">Sin foto</span>') +
                 '</td>' +
                 '</tr>';
