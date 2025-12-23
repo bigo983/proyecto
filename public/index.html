@@ -961,6 +961,17 @@
     }
 
     async function checkIn(tipo = 'ENTRADA') {
+      // Verificar que el usuario esté logeado
+      if (!currentUser || !currentUser.id) {
+        Swal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: 'Debes estar logeado para fichar',
+          confirmButtonColor: '#dc2626'
+        });
+        return;
+      }
+
       // Verificar último fichaje antes de proceder
       try {
         const lastLogRes = await fetch(`/api/last-log/${currentUser.id}`);
@@ -1006,6 +1017,7 @@
       navigator.geolocation.getCurrentPosition(
         async (position) => {
           const { latitude, longitude } = position.coords;
+          console.log('DEBUG checkIn:', { userId: currentUser.id, lat: latitude, lon: longitude, tipo });
 
           try {
             const response = await fetch('/api/check-in', {
