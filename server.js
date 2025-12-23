@@ -1608,7 +1608,19 @@ Notas:
   }
 });
 
-app.post('/api/check-in', upload.single('photo'), async (req, res) => {
+app.post('/api/check-in', async (req, res, next) => {
+  // Handle multipart form data if file is present, otherwise just parse JSON
+  if (req.headers['content-type']?.includes('multipart/form-data')) {
+    return upload.single('photo')(req, res, async () => {
+      handleCheckIn(req, res);
+    });
+  }
+  
+  // For JSON requests, just continue
+  handleCheckIn(req, res);
+});
+
+async function handleCheckIn(req, res) {
   let { userId, lat, lon, tipo } = req.body;
 
   if (!userId || lat === undefined || lon === undefined) {
@@ -1737,7 +1749,7 @@ app.post('/api/check-in', upload.single('photo'), async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
-});
+}
 
 // === ENDPOINTS PARA QR ===
 // Generar QR dinámico con token temporal
