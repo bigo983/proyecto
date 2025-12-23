@@ -1019,20 +1019,57 @@
           const { latitude, longitude } = position.coords;
           console.log('DEBUG checkIn:', { userId: currentUser.id, lat: latitude, lon: longitude, tipo });
 
+          // Cargar config para saber si se requiere foto
+          let requirePhoto = false;
           try {
-            const response = await fetch('/api/check-in', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
+            const configRes = await fetch('/api/config');
+            const config = await configRes.json();
+            requirePhoto = config.require_photo === true;
+            console.log('DEBUG: Config require_photo:', requirePhoto);
+          } catch (e) {
+            console.error('Error loading config:', e);
+          }
+
+          // Si requiere foto, mostrar cámara primero
+          let photoFile = null;
+          if (requirePhoto) {
+            photoFile = await capturePhotoModal();
+            if (!photoFile) {
+              statusDiv.innerHTML = '';
+              return; // Usuario canceló
+            }
+          }
+
+          try {
+            // Enviar como FormData si hay foto, sino como JSON
+            let fetchOptions = {
+              method: 'POST'
+            };
+
+            if (photoFile) {
+              const formData = new FormData();
+              formData.append('userId', currentUser.id);
+              formData.append('lat', latitude);
+              formData.append('lon', longitude);
+              formData.append('tipo', tipo);
+              formData.append('photo', photoFile);
+              fetchOptions.body = formData;
+              // No establecer Content-Type, el navegador lo hará automáticamente
+            } else {
+              fetchOptions.headers = { 'Content-Type': 'application/json' };
+              fetchOptions.body = JSON.stringify({
                 userId: currentUser.id,
                 lat: latitude,
                 lon: longitude,
                 tipo: tipo
-              })
-            });
+              });
+            }
 
+            const response = await fetch('/api/check-in', fetchOptions);
             const data = await response.json();
             console.log('DEBUG checkIn response:', { status: response.status, data });
+
+            statusDiv.innerHTML = '';
 
             if (response.ok) {
               Swal.fire({
@@ -1074,6 +1111,110 @@
           maximumAge: 0
         }
       );
+    }
+
+    async function capturePhotoModal() {
+      return new Promise((resolve) => {
+        Swal.fire({
+          title: '📷 Capturar Foto',
+          html: `
+            <div class="flex flex-col gap-3 items-center">
+              <p class="text-sm text-slate-600 mb-2">Se requiere una foto para validar tu fichaje</p>
+              <video id="cameraVideo" width="300" height="300" style="border: 2px solid #0891b2; border-radius: 8px; object-fit: cover; display: none;"></video>
+              <canvas id="photoCanvas" width="300" height="300" style="border: 2px solid #0891b2; border-radius: 8px; display: none;"></canvas>
+              <img id="photoPreview" style="max-width: 300px; border: 2px solid #0891b2; border-radius: 8px; display: none;">
+              <div id="cameraControls" class="flex gap-2 justify-center">
+                <button id="startCameraBtn" class="bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-2 px-4 rounded">Abrir Cámara</button>
+              </div>
+              <div id="photoControls" style="display: none;" class="flex gap-2 justify-center">
+                <button id="capturePhotoBtn" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded">Capturar Foto</button>
+                <button id="retakPhotoBtn" class="bg-orange-600 hover:bg-orange-700 text-white font-bold py-2 px-4 rounded">Reintentar</button>
+              </div>
+            </div>
+          `,
+          showCancelButton: true,
+          showConfirmButton: false,
+          didOpen: async () => {
+            const video = document.getElementById('cameraVideo');
+            const canvas = document.getElementById('photoCanvas');
+            const photoPreview = document.getElementById('photoPreview');
+            const cameraControls = document.getElementById('cameraControls');
+            const photoControls = document.getElementById('photoControls');
+            const startCameraBtn = document.getElementById('startCameraBtn');
+            const capturePhotoBtn = document.getElementById('capturePhotoBtn');
+            const retakPhotoBtn = document.getElementById('retakPhotoBtn');
+            let stream = null;
+            let photoBlob = null;
+
+            startCameraBtn.addEventListener('click', async () => {
+              try {
+                stream = await navigator.mediaDevices.getUserMedia({ 
+                  video: { facingMode: 'user' },
+                  audio: false 
+                });
+                video.srcObject = stream;
+                video.style.display = 'block';
+                cameraControls.style.display = 'none';
+                photoControls.style.display = 'flex';
+              } catch (err) {
+                Swal.showValidationMessage('No se pudo acceder a la cámara: ' + err.message);
+              }
+            });
+
+            capturePhotoBtn.addEventListener('click', () => {
+              const ctx = canvas.getContext('2d');
+              ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+              canvas.toBlob((blob) => {
+                photoBlob = blob;
+                photoPreview.src = URL.createObjectURL(blob);
+                photoPreview.style.display = 'block';
+                video.style.display = 'none';
+                photoControls.style.display = 'none';
+                
+                // Mostrar botón de confirmación
+                Swal.fire({
+                  title: '✅ Foto Capturada',
+                  imageUrl: URL.createObjectURL(blob),
+                  imageWidth: 300,
+                  imageHeight: 300,
+                  html: '<p class="text-sm text-slate-600 mt-3">¿Está bien la foto?</p>',
+                  showCancelButton: true,
+                  cancelButtonText: 'Reintentar',
+                  confirmButtonText: 'Confirmar',
+                  confirmButtonColor: '#16a34a',
+                  cancelButtonColor: '#f97316'
+                }).then((result) => {
+                  if (stream) {
+                    stream.getTracks().forEach(track => track.stop());
+                  }
+                  if (result.isConfirmed) {
+                    resolve(photoBlob);
+                  } else {
+                    resolve(null);
+                  }
+                });
+              }, 'image/jpeg', 0.9);
+            });
+
+            retakPhotoBtn.addEventListener('click', () => {
+              photoPreview.style.display = 'none';
+              video.style.display = 'block';
+              photoControls.style.display = 'flex';
+            });
+          },
+          willClose: () => {
+            // Cerrar la cámara si se cierra el modal
+            const video = document.getElementById('cameraVideo');
+            if (video && video.srcObject) {
+              video.srcObject.getTracks().forEach(track => track.stop());
+            }
+          }
+        }).then((result) => {
+          if (!result.isConfirmed && !result.dismiss) {
+            resolve(null);
+          }
+        });
+      });
     }
 
     // === FUNCIONES PARA FICHAJE POR QR ===

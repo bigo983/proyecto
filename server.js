@@ -1623,7 +1623,25 @@ app.post('/api/check-in', async (req, res, next) => {
 async function handleCheckIn(req, res) {
   let { userId, lat, lon, tipo } = req.body;
 
-  console.log('DEBUG handleCheckIn:', { userId, lat, lon, tipo, hasCompany: !!req.company, companyId: req.company?.id });
+  if (!userId || lat === undefined || lon === undefined) {
+    return res.status(400).json({ error: 'Faltan parámetros' });
+  }
+
+  // Convertir a números
+  lat = parseFloat(lat);
+  lon = parseFloat(lon);
+  userId = parseInt(userId);
+
+  if (isNaN(lat) || isNaN(lon) || isNaN(userId)) {
+    return res.status(400).json({ error: 'Parámetros inválidos (latitud, longitud o userId no son números)' });
+  }
+
+  if (!req.company || !req.company.id) {
+    return res.status(400).json({ error: 'Empresa no identificada. Recarga la página e intenta de nuevo.' });
+  }
+
+async function handleCheckIn(req, res) {
+  let { userId, lat, lon, tipo } = req.body;
 
   if (!userId || lat === undefined || lon === undefined) {
     return res.status(400).json({ error: 'Faltan parámetros' });
@@ -1648,7 +1666,6 @@ async function handleCheckIn(req, res) {
   try {
     // Obtener configuración de la empresa
     let config = await Config.findOne({ where: { company_id: req.company.id } });
-    console.log('DEBUG config loaded:', { exists: !!config, require_photo: config?.require_photo, maxDistance: config?.maxDistance });
     
     // Si no existe config, crear una por defecto
     if (!config) {
@@ -1659,7 +1676,6 @@ async function handleCheckIn(req, res) {
         maxDistance: 50,
         require_photo: false
       });
-      console.log('DEBUG: Config created with defaults');
     }
     
     // Actualizar variables globales
@@ -1669,15 +1685,12 @@ async function handleCheckIn(req, res) {
     RESTAURANT_ADDRESS = config.address || '';
     const require_photo = config.require_photo === true; // Asegurar que es boolean
     
-    console.log('DEBUG: Location config:', { RESTAURANT_LAT, RESTAURANT_LON, MAX_DISTANCE, require_photo });
-    
     // En desarrollo, permitir bypass de distancia si pass desarrollo
     const bypassDistance = req.body.bypass_distance === 'dev' || process.env.NODE_ENV === 'development';
     const bypassPhoto = req.body.bypass_photo === 'dev' || process.env.NODE_ENV === 'development';
     
     // Verificar si se requiere foto y no se envió (pero permitir en dev)
     if (require_photo && !req.file && !bypassPhoto) {
-      console.log('DEBUG: Photo required but not provided');
       return res.status(400).json({ error: 'Se requiere foto para fichar' });
     }
 
@@ -1687,12 +1700,9 @@ async function handleCheckIn(req, res) {
       order: [['fecha', 'DESC']]
     });
 
-    console.log('DEBUG lastLog:', { exists: !!lastLog, tipo: lastLog?.tipo });
-
     // Validar el tipo según el último fichaje
     if (lastLog) {
       if (lastLog.tipo === 'ENTRADA' && tipoFichaje === 'ENTRADA') {
-        console.log('DEBUG: Already checked in (ENTRADA)');
         // Eliminar foto si se subió
         if (req.file) fs.unlinkSync(req.file.path);
         return res.status(400).json({
@@ -1701,7 +1711,6 @@ async function handleCheckIn(req, res) {
         });
       }
       if (lastLog.tipo === 'SALIDA' && tipoFichaje === 'SALIDA') {
-        console.log('DEBUG: Already checked out (SALIDA)');
         if (req.file) fs.unlinkSync(req.file.path);
         return res.status(400).json({
           error: 'Ya has fichado la salida. Debes fichar la entrada.',
@@ -1709,7 +1718,6 @@ async function handleCheckIn(req, res) {
         });
       }
     } else if (tipoFichaje === 'SALIDA') {
-      console.log('DEBUG: No previous logs, cannot check out');
       // Si no hay logs previos, no puede fichar salida
       if (req.file) fs.unlinkSync(req.file.path);
       return res.status(400).json({
@@ -1720,10 +1728,8 @@ async function handleCheckIn(req, res) {
 
     // Validar ubicación (Geocerca) - pero permitir bypass en dev
     const distance = haversineDistance(lat, lon, RESTAURANT_LAT, RESTAURANT_LON);
-    console.log('DEBUG distance:', { distance, MAX_DISTANCE, bypassDistance });
 
     if (distance > MAX_DISTANCE && !bypassDistance) {
-      console.log('DEBUG: Distance validation failed');
       if (req.file) fs.unlinkSync(req.file.path);
       return res.status(400).json({
         error: `Estás fuera del rango permitido (${Math.round(distance)}m > ${MAX_DISTANCE}m). Si quieres ignorar esto, asegúrate de estar en el lugar correcto.`,
@@ -1732,8 +1738,6 @@ async function handleCheckIn(req, res) {
         success: false
       });
     }
-
-    console.log('DEBUG: All validations passed, creating log entry');
 
     // Registrar fichaje con foto si existe
     const log = await Log.create({
