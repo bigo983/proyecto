@@ -4,6 +4,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <title>Super Admin Dashboard - Ficha App</title>
     <link rel="stylesheet" href="/gdpr-banner.css">
     <script src="https://cdn.tailwindcss.com"></script>
@@ -373,18 +376,37 @@
         // Init
         loadCompanies();
 
-        // Forzar actualización del Service Worker y limpiar cookies viejas
+        // DESREGISTRAR TODOS LOS SERVICE WORKERS INMEDIATAMENTE
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.getRegistrations().then(registrations => {
                 registrations.forEach(registration => {
-                    registration.update(); // Forzar actualización
-                    console.log('Service Worker actualizado');
+                    registration.unregister().then(success => {
+                        if (success) {
+                            console.log('✅ Service Worker desregistrado correctamente');
+                        }
+                    });
                 });
+            }).catch(err => {
+                console.log('Error desregistrando Service Workers:', err);
             });
         }
 
-        // Limpiar cookie de empresa que puede interferir con superadmin
-        document.cookie = 'company=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax';
+        // Limpiar TODAS las cookies excepto el token de superadmin
+        document.cookie.split(";").forEach(c => {
+            const cookieName = c.split("=")[0].trim();
+            if (cookieName !== 'platform_token') {
+                document.cookie = cookieName + '=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax';
+                console.log('🧹 Cookie limpiada:', cookieName);
+            }
+        });
+
+        // Limpiar localStorage de empresa
+        try {
+            localStorage.removeItem('company');
+            localStorage.removeItem('token');
+        } catch (e) {}
+
+        console.log('🔑 SUPERADMIN MODE - Caché limpiado completamente');
     </script>
 </body>
 

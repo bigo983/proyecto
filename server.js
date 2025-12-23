@@ -336,8 +336,16 @@ function isSuperAdminSubdomain(req) {
 app.get('/', (req, res, next) => {
   if (isSuperAdminSubdomain(req)) {
     console.log('🔑 [SUPERADMIN] Serving superadmin.html for:', req.headers.host);
+    
+    // Si tiene cookie de empresa, redirigir a limpieza primero
+    const hasCookieCompany = req.headers.cookie && req.headers.cookie.includes('company=');
+    if (hasCookieCompany && !req.query.cleaned) {
+      console.log('⚠️ [SUPERADMIN] Cookie de empresa detectada, redirigiendo a limpieza...');
+      return res.redirect('/superadmin-clean.html');
+    }
+    
     // Headers para evitar caché y limpiar cookies de empresa
-    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private, max-age=0');
     res.setHeader('Pragma', 'no-cache');
     res.setHeader('Expires', '0');
     // Limpiar cookie de empresa que puede interferir
@@ -350,7 +358,15 @@ app.get('/', (req, res, next) => {
 app.get('/index.html', (req, res, next) => {
   if (isSuperAdminSubdomain(req)) {
     console.log('🔑 [SUPERADMIN] Redirecting /index.html to superadmin.html for:', req.headers.host);
-    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+    
+    // Si tiene cookie de empresa, redirigir a limpieza primero
+    const hasCookieCompany = req.headers.cookie && req.headers.cookie.includes('company=');
+    if (hasCookieCompany && !req.query.cleaned) {
+      console.log('⚠️ [SUPERADMIN] Cookie de empresa detectada, redirigiendo a limpieza...');
+      return res.redirect('/superadmin-clean.html');
+    }
+    
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private, max-age=0');
     res.setHeader('Pragma', 'no-cache');
     res.setHeader('Expires', '0');
     res.setHeader('Set-Cookie', 'company=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; HttpOnly; SameSite=Lax');

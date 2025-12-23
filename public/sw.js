@@ -4,7 +4,14 @@ const urlsToCache = [
   // Removido '/' e '/index.html' para evitar conflictos con superadmin
 ];
 
+// NO activar Service Worker en superadmin.agendaloya.es
 self.addEventListener('install', (event) => {
+  const currentHost = self.location.hostname;
+  if (currentHost.startsWith('superadmin.')) {
+    console.log('🚫 Service Worker: NO instalando en superadmin subdomain');
+    return self.skipWaiting();
+  }
+
   // Activate the new service worker as soon as it's finished installing.
   self.skipWaiting();
   console.log('Service Worker: Nueva versión instalada -', CACHE_NAME);
@@ -39,6 +46,13 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
+  const currentHost = self.location.hostname;
+  
+  // NO cachear nada en superadmin
+  if (currentHost.startsWith('superadmin.')) {
+    return; // Dejar que el navegador maneje todo sin caché
+  }
+
   if (event.request.method !== 'GET') {
     return;
   }
