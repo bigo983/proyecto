@@ -1143,13 +1143,20 @@
             const startCameraBtn = document.getElementById('startCameraBtn');
             const capturePhotoBtn = document.getElementById('capturePhotoBtn');
             const retakPhotoBtn = document.getElementById('retakPhotoBtn');
+            // Botón de cambiar cámara
+            const switchBtn = document.createElement('button');
+            switchBtn.textContent = 'Cambiar cámara';
+            switchBtn.className = 'bg-slate-600 hover:bg-slate-700 text-white font-bold py-2 px-4 rounded';
+            cameraControls.appendChild(switchBtn);
             let stream = null;
             let photoBlob = null;
+            let facingMode = 'user';
 
             async function startStreamWithFallback() {
               let lastError = null;
               const constraintsList = [
-                { video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false },
+                { video: { facingMode, width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false },
+                { video: { facingMode }, audio: false },
                 { video: true, audio: false }
               ];
 
@@ -1194,6 +1201,11 @@
               }
             });
 
+            switchBtn.addEventListener('click', async () => {
+              facingMode = facingMode === 'user' ? 'environment' : 'user';
+              startCameraBtn.click();
+            });
+
             capturePhotoBtn.addEventListener('click', () => {
               if (!stream) {
                 Swal.showValidationMessage('La cámara no está lista. Pulsa "Abrir Cámara" de nuevo.');
@@ -1204,7 +1216,16 @@
               const h = video.videoHeight || 300;
               canvas.width = w;
               canvas.height = h;
-              ctx.drawImage(video, 0, 0, w, h);
+              // Para cámara frontal, espejar para que no se vea invertido
+              if (facingMode === 'user') {
+                ctx.save();
+                ctx.translate(w, 0);
+                ctx.scale(-1, 1);
+                ctx.drawImage(video, 0, 0, w, h);
+                ctx.restore();
+              } else {
+                ctx.drawImage(video, 0, 0, w, h);
+              }
               canvas.toBlob((blob) => {
                 photoBlob = blob;
                 photoPreview.src = URL.createObjectURL(blob);
@@ -1721,6 +1742,7 @@
                         <th class="p-3 text-center font-semibold" style="width: 140px;">Tipo</th>
                         <th class="p-3 text-left font-semibold" style="width: 180px;">Fecha/Hora</th>
                         <th class="p-3 text-center font-semibold" style="width: 180px;">Método / Validación</th>
+                        <th class="p-3 text-center font-semibold" style="width: 140px;">Foto</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -1763,6 +1785,11 @@
                 '</td>' +
                 '<td class="p-3" style="vertical-align: middle;">' + new Date(log.fecha).toLocaleString('es-ES') + '</td>' +
                 '<td class="p-3 text-center" style="vertical-align: middle;">' + metodoBadge + '</td>' +
+                '<td class="p-3 text-center" style="vertical-align: middle;">' +
+                  (log.foto_url ? `<a href="${log.foto_url}" target="_blank" class="inline-flex items-center gap-2">
+                    <img src="${log.foto_url}" alt="foto" class="w-14 h-14 object-cover rounded border" />
+                  </a>` : '<span class="text-xs text-slate-400">Sin foto</span>') +
+                '</td>' +
                 '</tr>';
             }).join('')
           }
