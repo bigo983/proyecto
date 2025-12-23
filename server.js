@@ -1097,6 +1097,53 @@ app.post('/api/config', async (req, res) => {
   }
 });
 
+// Resetear configuración a valores por defecto
+app.post('/api/config/reset', async (req, res) => {
+  try {
+    if (!req.company) return res.status(404).json({ error: 'Empresa no encontrada' });
+    
+    let config = await Config.findOne({ where: { company_id: req.company.id } });
+    if (config) {
+      await config.update({
+        lat: 40.4168,
+        lon: -3.7038,
+        maxDistance: 50,
+        address: '',
+        metodo_fichaje: 'gps',
+        qr_duracion: 60,
+        qr_pin: '1234',
+        require_photo: false
+      });
+    } else {
+      config = await Config.create({
+        company_id: req.company.id,
+        lat: 40.4168,
+        lon: -3.7038,
+        maxDistance: 50,
+        address: '',
+        metodo_fichaje: 'gps',
+        qr_duracion: 60,
+        qr_pin: '1234',
+        require_photo: false
+      });
+    }
+
+    // Actualizar globales
+    RESTAURANT_LAT = config.lat;
+    RESTAURANT_LON = config.lon;
+    MAX_DISTANCE = config.maxDistance;
+    RESTAURANT_ADDRESS = config.address || '';
+
+    res.json({
+      success: true,
+      message: 'Configuración resetada a valores por defecto',
+      config
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Endpoint GET /api/stats
 app.get('/api/stats', async (req, res) => {
   try {
@@ -1580,18 +1627,33 @@ app.post('/api/check-in', upload.single('photo'), async (req, res) => {
   const tipoFichaje = tipo || 'ENTRADA';
 
   try {
-    // Obtener configuración de la empresa y actualizar variables globales
-    const config = await Config.findOne({ where: { company_id: req.company.id } });
+    // Obtener configuración de la empresa
+    let config = await Config.findOne({ where: { company_id: req.company.id } });
     
-    if (config) {
-      RESTAURANT_LAT = config.lat;
-      RESTAURANT_LON = config.lon;
-      MAX_DISTANCE = config.maxDistance;
-      RESTAURANT_ADDRESS = config.address || '';
+    // Si no existe config, crear una por defecto
+    if (!config) {
+      config = await Config.create({
+        company_id: req.company.id,
+        lat: 40.4168,  // Madrid por defecto
+        lon: -3.7038,
+        maxDistance: 50,
+        require_photo: false
+      });
     }
     
-    // Verificar si se requiere foto y no se envió
-    if (config && config.require_photo && !req.file) {
+    // Actualizar variables globales
+    RESTAURANT_LAT = config.lat || 40.4168;
+    RESTAURANT_LON = config.lon || -3.7038;
+    MAX_DISTANCE = config.maxDistance || 50;
+    RESTAURANT_ADDRESS = config.address || '';
+    const require_photo = config.require_photo === true; // Asegurar que es boolean
+    
+    // En desarrollo, permitir bypass de distancia si pass desarrollo
+    const bypassDistance = req.body.bypass_distance === 'dev' || process.env.NODE_ENV === 'development';
+    const bypassPhoto = req.body.bypass_photo === 'dev' || process.env.NODE_ENV === 'development';
+    
+    // Verificar si se requiere foto y no se envió (pero permitir en dev)
+    if (require_photo && !req.file && !bypassPhoto) {
       return res.status(400).json({ error: 'Se requiere foto para fichar' });
     }
 
@@ -1627,13 +1689,13 @@ app.post('/api/check-in', upload.single('photo'), async (req, res) => {
       });
     }
 
-    // Validar ubicación (Geocerca)
+    // Validar ubicación (Geocerca) - pero permitir bypass en dev
     const distance = haversineDistance(lat, lon, RESTAURANT_LAT, RESTAURANT_LON);
 
-    if (distance > MAX_DISTANCE) {
+    if (distance > MAX_DISTANCE && !bypassDistance) {
       if (req.file) fs.unlinkSync(req.file.path);
       return res.status(400).json({
-        error: `Estás fuera del rango permitido (${Math.round(distance)}m > ${MAX_DISTANCE}m)`,
+        error: `Estás fuera del rango permitido (${Math.round(distance)}m > ${MAX_DISTANCE}m). Si quieres ignorar esto, asegúrate de estar en el lugar correcto.`,
         distance: Math.round(distance),
         maxDistance: MAX_DISTANCE,
         success: false
