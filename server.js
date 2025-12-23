@@ -1562,17 +1562,33 @@ Notas:
 });
 
 app.post('/api/check-in', upload.single('photo'), async (req, res) => {
-  const { userId, lat, lon, tipo } = req.body;
+  let { userId, lat, lon, tipo } = req.body;
 
   if (!userId || lat === undefined || lon === undefined) {
     return res.status(400).json({ error: 'Faltan parámetros' });
   }
 
+  // Convertir a números
+  lat = parseFloat(lat);
+  lon = parseFloat(lon);
+  userId = parseInt(userId);
+
+  if (isNaN(lat) || isNaN(lon) || isNaN(userId)) {
+    return res.status(400).json({ error: 'Parámetros inválidos (latitud, longitud o userId no son números)' });
+  }
+
   const tipoFichaje = tipo || 'ENTRADA';
 
   try {
-    // Obtener configuración de la empresa
+    // Obtener configuración de la empresa y actualizar variables globales
     const config = await Config.findOne({ where: { company_id: req.company.id } });
+    
+    if (config) {
+      RESTAURANT_LAT = config.lat;
+      RESTAURANT_LON = config.lon;
+      MAX_DISTANCE = config.maxDistance;
+      RESTAURANT_ADDRESS = config.address || '';
+    }
     
     // Verificar si se requiere foto y no se envió
     if (config && config.require_photo && !req.file) {
@@ -1618,7 +1634,9 @@ app.post('/api/check-in', upload.single('photo'), async (req, res) => {
       if (req.file) fs.unlinkSync(req.file.path);
       return res.status(400).json({
         error: `Estás fuera del rango permitido (${Math.round(distance)}m > ${MAX_DISTANCE}m)`,
-        distance: Math.round(distance)
+        distance: Math.round(distance),
+        maxDistance: MAX_DISTANCE,
+        success: false
       });
     }
 
@@ -1643,6 +1661,9 @@ app.post('/api/check-in', upload.single('photo'), async (req, res) => {
     res.json({
       success: true,
       message: `${tipoFichaje === 'ENTRADA' ? 'Entrada' : 'Salida'} registrada correctamente`,
+      tipo: tipoFichaje,
+      distance: Math.round(distance),
+      maxDistance: MAX_DISTANCE,
       data: {
         user: user.nombre,
         tipo: tipoFichaje,

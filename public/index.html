@@ -1025,14 +1025,15 @@
               Swal.fire({
                 icon: 'success',
                 title: '¡Excelente!',
-                html: `<strong>${data.tipo}</strong> registrada<br>Distancia: ${data.distance}m`,
+                html: `<strong>${data.tipo}</strong> registrada<br>Distancia: ${data.distance || 0}m`,
                 confirmButtonColor: tipo === 'ENTRADA' ? '#16a34a' : '#f97316'
               });
             } else {
+              const distanceText = data.distance ? `Estás a ${data.distance}m. Máximo permitido: ${data.maxDistance || 50}m` : data.error;
               Swal.fire({
                 icon: 'error',
                 title: 'Demasiado lejos',
-                text: `Estás a ${data.distance}m. Máximo permitido: ${data.maxDistance}m`,
+                text: distanceText,
                 confirmButtonColor: '#dc2626'
               });
             }
