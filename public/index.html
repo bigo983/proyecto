@@ -1033,11 +1033,15 @@
           // Si requiere foto, mostrar cámara primero
           let photoFile = null;
           if (requirePhoto) {
+            console.log('DEBUG: Abriendo modal de captura de foto...');
             photoFile = await capturePhotoModal();
+            console.log('DEBUG: capturePhotoModal retornó:', { photoFile, tipo: typeof photoFile });
             if (!photoFile) {
+              console.log('DEBUG: Usuario canceló la foto');
               statusDiv.innerHTML = '';
               return; // Usuario canceló
             }
+            console.log('DEBUG: Foto capturada, continuando con FormData');
           }
 
           try {
@@ -1123,8 +1127,8 @@
         let photoBlob = null;
         let stream = null;
         let facingMode = 'user';
+        let currentStep = 'camera'; // camera, preview, confirm
 
-        // Función para limpiar streams
         const cleanupStream = () => {
           if (stream) {
             stream.getTracks().forEach(track => track.stop());
@@ -1132,7 +1136,6 @@
           }
         };
 
-        // Función para intentar acceder a cámara con fallback
         async function startStreamWithFallback() {
           let lastError = null;
           const constraintsList = [
@@ -1152,18 +1155,23 @@
           throw lastError || new Error('No se pudo acceder a la cámara');
         }
 
-        Swal.fire({
+        const swalInstance = Swal.fire({
           title: '📷 Capturar Foto',
           html: `
             <div class="flex flex-col gap-3 items-center">
-              <p class="text-sm text-slate-600 mb-2">Se requiere una foto para validar tu fichaje</p>
+              <p id="photoStepText" class="text-sm text-slate-600 mb-2">Se requiere una foto para validar tu fichaje</p>
               <video id="cameraVideo" width="300" height="300" style="border: 2px solid #0891b2; border-radius: 8px; object-fit: cover; display: none;"></video>
               <canvas id="photoCanvas" width="300" height="300" style="border: 2px solid #0891b2; border-radius: 8px; display: none;"></canvas>
-              <div id="cameraControls" class="flex gap-2 justify-center">
+              <img id="photoPreview" style="max-width: 300px; border: 2px solid #0891b2; border-radius: 8px; display: none;">
+              <div id="cameraControls" class="flex gap-2 justify-center flex-wrap">
                 <button id="startCameraBtn" class="bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-2 px-4 rounded">Abrir Cámara</button>
               </div>
-              <div id="photoControls" style="display: none;" class="flex gap-2 justify-center">
+              <div id="photoControls" style="display: none;" class="flex gap-2 justify-center flex-wrap">
                 <button id="capturePhotoBtn" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded">Capturar Foto</button>
+              </div>
+              <div id="confirmControls" style="display: none;" class="flex gap-2 justify-center flex-wrap">
+                <button id="confirmPhotoBtn" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded">✓ Confirmar</button>
+                <button id="retryPhotoBtn" class="bg-orange-600 hover:bg-orange-700 text-white font-bold py-2 px-4 rounded">↻ Reintentar</button>
               </div>
             </div>
           `,
@@ -1172,19 +1180,24 @@
           didOpen: async () => {
             const video = document.getElementById('cameraVideo');
             const canvas = document.getElementById('photoCanvas');
+            const photoPreview = document.getElementById('photoPreview');
+            const photoStepText = document.getElementById('photoStepText');
             const cameraControls = document.getElementById('cameraControls');
             const photoControls = document.getElementById('photoControls');
+            const confirmControls = document.getElementById('confirmControls');
             const startCameraBtn = document.getElementById('startCameraBtn');
             const capturePhotoBtn = document.getElementById('capturePhotoBtn');
+            const confirmPhotoBtn = document.getElementById('confirmPhotoBtn');
+            const retryPhotoBtn = document.getElementById('retryPhotoBtn');
             
             // Botón para cambiar cámara
             const switchBtn = document.createElement('button');
-            switchBtn.textContent = 'Cambiar cámara';
+            switchBtn.textContent = '🔄 Cambiar cámara';
             switchBtn.className = 'bg-slate-600 hover:bg-slate-700 text-white font-bold py-2 px-4 rounded';
             switchBtn.style.display = 'none';
             photoControls.appendChild(switchBtn);
 
-            // Listener para abrir cámara
+            // Abrir cámara
             startCameraBtn.addEventListener('click', async () => {
               try {
                 cleanupStream();
@@ -1201,25 +1214,29 @@
                 ]);
 
                 if (video.videoWidth === 0 || video.videoHeight === 0) {
-                  throw new Error('La cámara tardó demasiado en iniciar. Intenta de nuevo.');
+                  throw new Error('La cámara tardó demasiado. Intenta de nuevo.');
                 }
 
+                currentStep = 'camera';
+                photoStepText.textContent = 'Cámara lista. Toma tu foto.';
                 video.style.display = 'block';
+                photoPreview.style.display = 'none';
                 cameraControls.style.display = 'none';
                 photoControls.style.display = 'flex';
+                confirmControls.style.display = 'none';
                 switchBtn.style.display = 'inline-flex';
               } catch (err) {
                 Swal.showValidationMessage('❌ ' + err.message);
               }
             });
 
-            // Listener para cambiar cámara
+            // Cambiar cámara
             switchBtn.addEventListener('click', async () => {
               facingMode = facingMode === 'user' ? 'environment' : 'user';
               startCameraBtn.click();
             });
 
-            // Listener para capturar foto
+            // Capturar foto
             capturePhotoBtn.addEventListener('click', () => {
               if (!stream) {
                 Swal.showValidationMessage('La cámara no está lista.');
@@ -1249,43 +1266,44 @@
                 }
 
                 photoBlob = blob;
-
-                // Mostrar confirmación
-                Swal.fire({
-                  title: '✅ Foto Capturada',
-                  imageUrl: URL.createObjectURL(blob),
-                  imageWidth: 300,
-                  imageHeight: 300,
-                  html: '<p class="text-sm text-slate-600 mt-3">¿Está bien la foto?</p>',
-                  showCancelButton: true,
-                  cancelButtonText: 'Reintentar',
-                  confirmButtonText: 'Confirmar',
-                  confirmButtonColor: '#16a34a',
-                  cancelButtonColor: '#f97316',
-                  allowOutsideClick: false,
-                  allowEscapeKey: false
-                }).then((result) => {
-                  if (result.isConfirmed) {
-                    // Confirmar foto
-                    cleanupStream();
-                    resolve(photoBlob);
-                  } else {
-                    // Reintentar - volver al modal de cámara
-                    video.style.display = 'block';
-                    photoControls.style.display = 'flex';
-                    switchBtn.style.display = 'inline-flex';
-                  }
-                });
+                currentStep = 'confirm';
+                photoStepText.textContent = '¿Está bien la foto?';
+                video.style.display = 'none';
+                photoPreview.src = URL.createObjectURL(blob);
+                photoPreview.style.display = 'block';
+                photoControls.style.display = 'none';
+                confirmControls.style.display = 'flex';
+                console.log('DEBUG: Foto capturada, mostrando controles de confirmación');
               }, 'image/jpeg', 0.9);
+            });
+
+            // Confirmar foto
+            confirmPhotoBtn.addEventListener('click', () => {
+              console.log('DEBUG: Usuario confirmó la foto, resolviendo Promise');
+              cleanupStream();
+              resolve(photoBlob);
+              Swal.close();
+            });
+
+            // Reintentar
+            retryPhotoBtn.addEventListener('click', () => {
+              console.log('DEBUG: Usuario reintentar, volviendo a cámara');
+              currentStep = 'camera';
+              photoStepText.textContent = 'Toma otra foto.';
+              video.style.display = 'block';
+              photoPreview.style.display = 'none';
+              photoControls.style.display = 'flex';
+              confirmControls.style.display = 'none';
             });
           },
           willClose: () => {
+            console.log('DEBUG: Modal cerrado, limpiando streams');
             cleanupStream();
           }
         }).then((result) => {
-          // Si el usuario cancela el modal principal, rechazar
-          if (result.dismiss) {
-            cleanupStream();
+          console.log('DEBUG: Swal.fire finalizado, result:', result);
+          if (!photoBlob) {
+            console.log('DEBUG: No hay foto, resolviendo con null');
             resolve(null);
           }
         });
