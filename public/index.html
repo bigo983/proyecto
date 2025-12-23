@@ -1120,6 +1120,38 @@
 
     async function capturePhotoModal() {
       return new Promise((resolve) => {
+        let photoBlob = null;
+        let stream = null;
+        let facingMode = 'user';
+
+        // Función para limpiar streams
+        const cleanupStream = () => {
+          if (stream) {
+            stream.getTracks().forEach(track => track.stop());
+            stream = null;
+          }
+        };
+
+        // Función para intentar acceder a cámara con fallback
+        async function startStreamWithFallback() {
+          let lastError = null;
+          const constraintsList = [
+            { video: { facingMode, width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false },
+            { video: { facingMode }, audio: false },
+            { video: true, audio: false }
+          ];
+
+          for (const constraints of constraintsList) {
+            try {
+              const s = await navigator.mediaDevices.getUserMedia(constraints);
+              return s;
+            } catch (err) {
+              lastError = err;
+            }
+          }
+          throw lastError || new Error('No se pudo acceder a la cámara');
+        }
+
         Swal.fire({
           title: '📷 Capturar Foto',
           html: `
@@ -1127,7 +1159,6 @@
               <p class="text-sm text-slate-600 mb-2">Se requiere una foto para validar tu fichaje</p>
               <video id="cameraVideo" width="300" height="300" style="border: 2px solid #0891b2; border-radius: 8px; object-fit: cover; display: none;"></video>
               <canvas id="photoCanvas" width="300" height="300" style="border: 2px solid #0891b2; border-radius: 8px; display: none;"></canvas>
-              <img id="photoPreview" style="max-width: 300px; border: 2px solid #0891b2; border-radius: 8px; display: none;">
               <div id="cameraControls" class="flex gap-2 justify-center">
                 <button id="startCameraBtn" class="bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-2 px-4 rounded">Abrir Cámara</button>
               </div>
@@ -1141,50 +1172,25 @@
           didOpen: async () => {
             const video = document.getElementById('cameraVideo');
             const canvas = document.getElementById('photoCanvas');
-            const photoPreview = document.getElementById('photoPreview');
             const cameraControls = document.getElementById('cameraControls');
             const photoControls = document.getElementById('photoControls');
             const startCameraBtn = document.getElementById('startCameraBtn');
             const capturePhotoBtn = document.getElementById('capturePhotoBtn');
-            const retakPhotoBtn = document.getElementById('retakPhotoBtn');
-            // Botón de cambiar cámara (se mostrará cuando el video esté activo)
+            
+            // Botón para cambiar cámara
             const switchBtn = document.createElement('button');
             switchBtn.textContent = 'Cambiar cámara';
             switchBtn.className = 'bg-slate-600 hover:bg-slate-700 text-white font-bold py-2 px-4 rounded';
             switchBtn.style.display = 'none';
             photoControls.appendChild(switchBtn);
-            let stream = null;
-            let photoBlob = null;
-            let facingMode = 'user';
 
-            async function startStreamWithFallback() {
-              let lastError = null;
-              const constraintsList = [
-                { video: { facingMode, width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false },
-                { video: { facingMode }, audio: false },
-                { video: true, audio: false }
-              ];
-
-              for (const constraints of constraintsList) {
-                try {
-                  const s = await navigator.mediaDevices.getUserMedia(constraints);
-                  return s;
-                } catch (err) {
-                  lastError = err;
-                }
-              }
-              throw lastError || new Error('No se pudo acceder a la cámara');
-            }
-
+            // Listener para abrir cámara
             startCameraBtn.addEventListener('click', async () => {
               try {
-                if (stream) {
-                  stream.getTracks().forEach(t => t.stop());
-                }
-
+                cleanupStream();
                 stream = await startStreamWithFallback();
                 video.srcObject = stream;
-                video.setAttribute('playsinline', 'true'); // necesario en iOS para no ir a fullscreen
+                video.setAttribute('playsinline', 'true');
 
                 await Promise.race([
                   new Promise((resolve, reject) => {
@@ -1203,26 +1209,29 @@
                 photoControls.style.display = 'flex';
                 switchBtn.style.display = 'inline-flex';
               } catch (err) {
-                Swal.showValidationMessage('No se pudo acceder a la cámara: ' + err.message);
+                Swal.showValidationMessage('❌ ' + err.message);
               }
             });
 
+            // Listener para cambiar cámara
             switchBtn.addEventListener('click', async () => {
               facingMode = facingMode === 'user' ? 'environment' : 'user';
               startCameraBtn.click();
             });
 
+            // Listener para capturar foto
             capturePhotoBtn.addEventListener('click', () => {
               if (!stream) {
-                Swal.showValidationMessage('La cámara no está lista. Pulsa "Abrir Cámara" de nuevo.');
+                Swal.showValidationMessage('La cámara no está lista.');
                 return;
               }
+
               const ctx = canvas.getContext('2d');
               const w = video.videoWidth || 300;
               const h = video.videoHeight || 300;
               canvas.width = w;
               canvas.height = h;
-              // Para cámara frontal, espejar para que no se vea invertido
+
               if (facingMode === 'user') {
                 ctx.save();
                 ctx.translate(w, 0);
@@ -1232,14 +1241,16 @@
               } else {
                 ctx.drawImage(video, 0, 0, w, h);
               }
+
               canvas.toBlob((blob) => {
+                if (!blob) {
+                  Swal.showValidationMessage('Error al procesar la foto');
+                  return;
+                }
+
                 photoBlob = blob;
-                photoPreview.src = URL.createObjectURL(blob);
-                photoPreview.style.display = 'block';
-                video.style.display = 'none';
-                photoControls.style.display = 'none';
-                
-                // Mostrar confirmación de foto
+
+                // Mostrar confirmación
                 Swal.fire({
                   title: '✅ Foto Capturada',
                   imageUrl: URL.createObjectURL(blob),
@@ -1255,14 +1266,11 @@
                   allowEscapeKey: false
                 }).then((result) => {
                   if (result.isConfirmed) {
-                    // Foto confirmada - cerrar streams
-                    if (stream) {
-                      stream.getTracks().forEach(track => track.stop());
-                    }
+                    // Confirmar foto
+                    cleanupStream();
                     resolve(photoBlob);
                   } else {
-                    // Reintentar - volver a mostrar cámara
-                    photoPreview.style.display = 'none';
+                    // Reintentar - volver al modal de cámara
                     video.style.display = 'block';
                     photoControls.style.display = 'flex';
                     switchBtn.style.display = 'inline-flex';
@@ -1272,14 +1280,12 @@
             });
           },
           willClose: () => {
-            // Cerrar la cámara si se cierra el modal
-            const video = document.getElementById('cameraVideo');
-            if (video && video.srcObject) {
-              video.srcObject.getTracks().forEach(track => track.stop());
-            }
+            cleanupStream();
           }
         }).then((result) => {
-          if (!result.isConfirmed && !result.dismiss) {
+          // Si el usuario cancela el modal principal, rechazar
+          if (result.dismiss) {
+            cleanupStream();
             resolve(null);
           }
         });
