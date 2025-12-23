@@ -201,7 +201,7 @@ app.use(async (req, res, next) => {
   if (
     req.path.startsWith('/api/register-company') ||
     req.path.startsWith('/api/superadmin') ||
-    req.path.match(/\.(js|css|png|jpg|ico)$/)
+    req.path.match(/\.(js|css|png|jpg|ico|webmanifest)$/)
   ) {
     return next();
   }
@@ -210,6 +210,15 @@ app.use(async (req, res, next) => {
   const hostHeader = String(req.headers.host || '');
   // Remove port if present (e.g. example.com:3000)
   const hostWithoutPort = hostHeader.split(':')[0].toLowerCase();
+
+  // Detectar si es superadmin.agendaloya.es o superadmin en localhost
+  if (hostWithoutPort === 'superadmin.agendaloya.es' || (hostWithoutPort === 'localhost' && req.query.superadmin === '1')) {
+    // Servir superadmin.html para cualquier ruta en este subdominio
+    if (req.path === '/' || req.path === '/index.html') {
+      return res.sendFile(path.join(__dirname, 'public', 'superadmin.html'));
+    }
+    return next();
+  }
 
   // Prioridad 1: Header (útil para testing)
   if (req.headers['x-company-subdomain']) {
@@ -231,7 +240,8 @@ app.use(async (req, res, next) => {
     // actually a subdomain (e.g. company.example.com). For apex domains
     // like example.com, require the company context via ?company=, cookie,
     // or x-company-subdomain header.
-    if (parts.length > 2 && parts[0] !== 'www' && parts[0] !== 'localhost') {
+    // Excluir 'superadmin' de la lista de subdominios de empresa
+    if (parts.length > 2 && parts[0] !== 'www' && parts[0] !== 'localhost' && parts[0] !== 'superadmin') {
       subdomain = parts[0];
     }
   }
