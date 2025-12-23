@@ -1623,6 +1623,8 @@ app.post('/api/check-in', async (req, res, next) => {
 async function handleCheckIn(req, res) {
   let { userId, lat, lon, tipo } = req.body;
 
+  console.log('DEBUG handleCheckIn:', { userId, lat, lon, tipo, hasCompany: !!req.company, companyId: req.company?.id });
+
   if (!userId || lat === undefined || lon === undefined) {
     return res.status(400).json({ error: 'Faltan parámetros' });
   }
@@ -1634,6 +1636,11 @@ async function handleCheckIn(req, res) {
 
   if (isNaN(lat) || isNaN(lon) || isNaN(userId)) {
     return res.status(400).json({ error: 'Parámetros inválidos (latitud, longitud o userId no son números)' });
+  }
+
+  if (!req.company || !req.company.id) {
+    console.error('ERROR: req.company is undefined in check-in');
+    return res.status(400).json({ error: 'Empresa no identificada. Recarga la página e intenta de nuevo.' });
   }
 
   const tipoFichaje = tipo || 'ENTRADA';
