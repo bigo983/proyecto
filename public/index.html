@@ -1076,15 +1076,20 @@
             statusDiv.innerHTML = '';
 
             if (response.ok) {
+              console.log('DEBUG: Fichaje exitoso, mostrando modal de éxito');
               Swal.fire({
                 icon: 'success',
                 title: '¡Excelente!',
                 html: `<strong>${data.tipo}</strong> registrada<br>Distancia: ${data.distance || 0}m`,
                 confirmButtonColor: tipo === 'ENTRADA' ? '#16a34a' : '#f97316'
               }).then(() => {
+                console.log('DEBUG: Modal de éxito cerrado, refrescando logs');
                 // Refrescar logs si el admin está viendo el panel
                 if (typeof loadLogsData === 'function') {
+                  console.log('DEBUG: Llamando a loadLogsData()');
                   loadLogsData();
+                } else {
+                  console.log('DEBUG: loadLogsData no está disponible');
                 }
               });
             } else {
@@ -3904,10 +3909,11 @@
               <th class="p-3 text-center font-semibold" style="width: 140px;">Tipo</th>
               <th class="p-3 text-left font-semibold" style="width: 180px;">Fecha/Hora</th>
               <th class="p-3 text-center font-semibold" style="width: 180px;">Método / Validación</th>
+              <th class="p-3 text-center font-semibold" style="width: 140px;">Foto</th>
             </tr>
           </thead>
           <tbody>
-            ${filteredLogs.length === 0 ? '<tr><td colspan="5" class="p-3 text-center text-gray-500">No hay registros</td></tr>' :
+            ${filteredLogs.length === 0 ? '<tr><td colspan="6" class="p-3 text-center text-gray-500">No hay registros</td></tr>' :
           filteredLogs.map(log => {
             const esQR = log.lat === 0 && log.lon === 0;
             let metodoBadge = '';
@@ -3936,6 +3942,14 @@
               }
             }
 
+            const fotoHTML = log.foto_url ? 
+              `<a href="${log.foto_url}" target="_blank" class="inline-flex items-center gap-2">
+                <span class="inline-block w-16 h-16 rounded border overflow-hidden bg-slate-100">
+                  <img src="${log.foto_url}" alt="foto" class="w-full h-full object-cover" />
+                </span>
+              </a>` : 
+              '<span class="text-xs text-slate-400">Sin foto</span>';
+
             return '<tr class="border-b hover:bg-gray-50">' +
               '<td class="p-3 text-center" style="vertical-align: middle;">' + log.id + '</td>' +
               '<td class="p-3 font-semibold" style="vertical-align: middle;">' + log.nombre + '</td>' +
@@ -3946,6 +3960,7 @@
               '</td>' +
               '<td class="p-3" style="vertical-align: middle;">' + new Date(log.fecha).toLocaleString('es-ES') + '</td>' +
               '<td class="p-3 text-center" style="vertical-align: middle;">' + metodoBadge + '</td>' +
+              '<td class="p-3 text-center" style="vertical-align: middle;">' + fotoHTML + '</td>' +
               '</tr>';
           }).join('')
         }
