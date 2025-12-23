@@ -206,25 +206,19 @@ app.use(async (req, res, next) => {
     return next();
   }
 
-  let subdomain = null;
+  // Si es el subdominio de superadmin, NO aplicar multi-tenancy
   const hostHeader = String(req.headers.host || '');
-  // Remove port if present (e.g. example.com:3000)
   const hostWithoutPort = hostHeader.split(':')[0].toLowerCase();
-
-  // Detectar si es superadmin.agendaloya.es
   const parts = hostWithoutPort.split('.');
   const isCustomDomain = parts.length >= 2 && (parts[parts.length-2] + '.' + parts[parts.length-1]) === 'agendaloya.es';
   const firstPart = parts.length > 0 ? parts[0] : '';
   
   if ((isCustomDomain && firstPart === 'superadmin') || (hostWithoutPort === 'localhost' && req.query.superadmin === '1')) {
-    // Servir superadmin.html para cualquier ruta en este subdominio
-    if (req.path === '/' || req.path === '/index.html') {
-      console.log('🔑 Serving superadmin.html for:', hostWithoutPort);
-      return res.sendFile(path.join(__dirname, 'public', 'superadmin.html'));
-    }
-    // Para otros paths, permitir que continúe (assets, API, etc.)
+    // Es superadmin, no hacer nada de multi-tenant
     return next();
   }
+
+  let subdomain = null;
 
   // Prioridad 1: Header (útil para testing)
   if (req.headers['x-company-subdomain']) {
@@ -326,38 +320,41 @@ app.get('/api/company/status', async (req, res) => {
   }
 });
 
+// Función helper para detectar si el request es para superadmin
+function isSuperAdminSubdomain(req) {
+  const hostHeader = String(req.headers.host || '');
+  const hostWithoutPort = hostHeader.split(':')[0].toLowerCase();
+  const parts = hostWithoutPort.split('.');
+  const isCustomDomain = parts.length >= 2 && (parts[parts.length-2] + '.' + parts[parts.length-1]) === 'agendaloya.es';
+  const firstPart = parts.length > 0 ? parts[0] : '';
+  
+  // Detectar superadmin.agendaloya.es o localhost con flag
+  return (isCustomDomain && firstPart === 'superadmin') || (hostWithoutPort === 'localhost' && req.query.superadmin === '1');
+}
+
+// INTERCEPTAR superadmin.agendaloya.es ANTES de express.static
+app.get('/', (req, res, next) => {
+  if (isSuperAdminSubdomain(req)) {
+    console.log('🔑 [SUPERADMIN] Serving superadmin.html for:', req.headers.host);
+    return res.sendFile(path.join(__dirname, 'public', 'superadmin.html'));
+  }
+  next();
+});
+
+app.get('/index.html', (req, res, next) => {
+  if (isSuperAdminSubdomain(req)) {
+    console.log('🔑 [SUPERADMIN] Redirecting /index.html to superadmin.html for:', req.headers.host);
+    return res.sendFile(path.join(__dirname, 'public', 'superadmin.html'));
+  }
+  next();
+});
+
 // Bloquear el registro público: solo el SuperAdmin crea empresas.
-// Esto sobreescribe el archivo estático public/register.html.
 app.get('/register.html', (req, res) => {
   res.status(404).send('Not found');
 });
 
 app.use(express.static(path.join(__dirname, 'public')));
-// Servir archivos estáticos (frontend)
-app.use((req, res, next) => {
-  // Si el host es agendaloya.es, servir el panel SuperAdmin
-  const host = req.headers.host?.toLowerCase() || '';
-  if (host === 'agendaloya.es' || host.startsWith('agendaloya.es:')) {
-    // Solo permitir acceso si está autenticado como superadmin
-    if (req.path === '/' || req.path === '/superadmin' || req.path.startsWith('/superadmin')) {
-      // Verificar token JWT en cookie o header
-      const token = req.headers.authorization?.replace('Bearer ', '') || req.cookies?.token;
-      let isSuperAdmin = false;
-      if (token) {
-        try {
-          const decoded = require('jsonwebtoken').verify(token, process.env.JWT_SECRET || 'supersecret');
-          isSuperAdmin = decoded && decoded.platform === true && decoded.rol === 'superadmin';
-        } catch (e) {}
-      }
-      if (!isSuperAdmin) {
-        return res.status(403).send('Acceso solo para SuperAdmin');
-      }
-      return res.sendFile(path.join(__dirname, 'public', 'superadmin.html'));
-    }
-  }
-  // Para el resto, servir el frontend normal
-  express.static(path.join(__dirname, 'public'))(req, res, next);
-});
 
 // Evitar ruido en consola si no hay favicon.ico (no es crítico para la app).
 app.get('/favicon.ico', (req, res) => {

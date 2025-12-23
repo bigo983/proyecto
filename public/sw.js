@@ -1,8 +1,7 @@
-const CACHE_NAME = 'ficha-app-v2';
+const CACHE_NAME = 'ficha-app-v3-superadmin-fix';
 const urlsToCache = [
-  '/',
-  '/index.html',
   '/manifest.json'
+  // Removido '/' e '/index.html' para evitar conflictos con superadmin
 ];
 
 self.addEventListener('install', (event) => {
