@@ -1636,31 +1636,6 @@ async function handleCheckIn(req, res) {
     return res.status(400).json({ error: 'Parámetros inválidos (latitud, longitud o userId no son números)' });
   }
 
-  if (!req.company || !req.company.id) {
-    return res.status(400).json({ error: 'Empresa no identificada. Recarga la página e intenta de nuevo.' });
-  }
-
-async function handleCheckIn(req, res) {
-  let { userId, lat, lon, tipo } = req.body;
-
-  if (!userId || lat === undefined || lon === undefined) {
-    return res.status(400).json({ error: 'Faltan parámetros' });
-  }
-
-  // Convertir a números
-  lat = parseFloat(lat);
-  lon = parseFloat(lon);
-  userId = parseInt(userId);
-
-  if (isNaN(lat) || isNaN(lon) || isNaN(userId)) {
-    return res.status(400).json({ error: 'Parámetros inválidos (latitud, longitud o userId no son números)' });
-  }
-
-  if (!req.company || !req.company.id) {
-    console.error('ERROR: req.company is undefined in check-in');
-    return res.status(400).json({ error: 'Empresa no identificada. Recarga la página e intenta de nuevo.' });
-  }
-
   const tipoFichaje = tipo || 'ENTRADA';
 
   try {
