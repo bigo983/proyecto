@@ -3817,16 +3817,27 @@
     let allLogs = [];
     let filteredLogs = [];
 
-    function mostrarFoto(fotoUrl, nombre, tipo, fecha) {
+    function mostrarFoto(logId) {
+      // Buscar el log en allLogs
+      const log = allLogs.find(l => l.id === logId);
+      if (!log || !log.foto_url) {
+        Swal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: 'No se encontró la foto'
+        });
+        return;
+      }
+
       Swal.fire({
-        title: '📷 Foto - ' + nombre,
+        title: '📷 Foto - ' + log.nombre,
         html: `
           <div class="flex flex-col gap-3">
-            <img src="${fotoUrl}" alt="foto" style="max-width: 100%; max-height: 500px; border-radius: 8px; border: 2px solid #0891b2;">
+            <img src="${log.foto_url}" alt="foto" style="max-width: 100%; max-height: 500px; border-radius: 8px; border: 2px solid #0891b2;">
             <div class="text-sm text-slate-600 text-left">
-              <p><strong>Empleado:</strong> ${nombre}</p>
-              <p><strong>Tipo:</strong> ${tipo === 'ENTRADA' ? '📍 ENTRADA' : '🚪 SALIDA'}</p>
-              <p><strong>Fecha/Hora:</strong> ${fecha}</p>
+              <p><strong>Empleado:</strong> ${log.nombre}</p>
+              <p><strong>Tipo:</strong> ${log.tipo === 'ENTRADA' ? '📍 ENTRADA' : '🚪 SALIDA'}</p>
+              <p><strong>Fecha/Hora:</strong> ${new Date(log.fecha).toLocaleString('es-ES')}</p>
             </div>
           </div>
         `,
@@ -3838,8 +3849,8 @@
         if (result.isConfirmed) {
           // Descargar la foto
           const link = document.createElement('a');
-          link.href = fotoUrl;
-          link.download = `foto_${nombre}_${new Date().toISOString().split('T')[0]}.jpg`;
+          link.href = log.foto_url;
+          link.download = `foto_${log.nombre}_${new Date(log.fecha).toISOString().split('T')[0]}.jpg`;
           link.click();
         }
       });
@@ -3971,11 +3982,11 @@
             }
 
             const fotoHTML = log.foto_url ? 
-              `<a href="javascript:void(0)" onclick="mostrarFoto('${log.foto_url}', '${log.nombre}', '${log.tipo}', '${new Date(log.fecha).toLocaleString('es-ES')}')" class="inline-flex items-center gap-2 cursor-pointer hover:opacity-75 transition">
+              `<button onclick="mostrarFoto(${log.id})" class="inline-flex items-center gap-2 cursor-pointer hover:opacity-75 transition bg-none border-none p-0" style="background: none; border: none; padding: 0;">
                 <span class="inline-block w-16 h-16 rounded border overflow-hidden bg-slate-100">
                   <img src="${log.foto_url}" alt="foto" class="w-full h-full object-cover" />
                 </span>
-              </a>` : 
+              </button>` : 
               '<span class="text-xs text-slate-400">Sin foto</span>';
 
             return '<tr class="border-b hover:bg-gray-50">' +
