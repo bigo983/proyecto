@@ -3818,9 +3818,13 @@
     let filteredLogs = [];
 
     function mostrarFoto(logId) {
+      console.log('DEBUG: mostrarFoto llamado con ID:', logId);
       // Buscar el log en allLogs
       const log = allLogs.find(l => l.id === logId);
+      console.log('DEBUG: Log encontrado:', log);
+      
       if (!log || !log.foto_url) {
+        console.log('DEBUG: No se encontró log o foto_url');
         Swal.fire({
           icon: 'error',
           title: 'Error',
@@ -3829,6 +3833,7 @@
         return;
       }
 
+      console.log('DEBUG: Abriendo modal con foto:', log.foto_url);
       Swal.fire({
         title: '📷 Foto - ' + log.nombre,
         html: `
@@ -3982,11 +3987,11 @@
             }
 
             const fotoHTML = log.foto_url ? 
-              `<span class="photo-thumbnail cursor-pointer hover:opacity-75 transition inline-block" data-log-id="${log.id}" style="display: inline-block;">
+              `<div class="photo-thumbnail cursor-pointer hover:opacity-75 transition" data-log-id="${log.id}" style="display: inline-block; user-select: none;">
                 <span class="inline-block w-16 h-16 rounded border overflow-hidden bg-slate-100">
-                  <img src="${log.foto_url}" alt="foto" class="w-full h-full object-cover" />
+                  <img src="${log.foto_url}" alt="foto" class="w-full h-full object-cover" style="pointer-events: none; user-drag: none;" draggable="false" />
                 </span>
-              </span>` : 
+              </div>` : 
               '<span class="text-xs text-slate-400">Sin foto</span>';
 
             return '<tr class="border-b hover:bg-gray-50">' +
@@ -4009,10 +4014,14 @@
 
       // Agregar event listeners a las fotos
       const photoThumbnails = container.querySelectorAll('.photo-thumbnail');
+      console.log('DEBUG: Encontrados ' + photoThumbnails.length + ' thumbnails de foto');
       photoThumbnails.forEach(thumb => {
         thumb.addEventListener('click', (e) => {
+          console.log('DEBUG: Click en foto');
           e.stopPropagation();
+          e.preventDefault();
           const logId = parseInt(thumb.getAttribute('data-log-id'));
+          console.log('DEBUG: Mostrando foto con ID:', logId);
           mostrarFoto(logId);
         });
       });
