@@ -3982,11 +3982,11 @@
             }
 
             const fotoHTML = log.foto_url ? 
-              `<button onclick="mostrarFoto(${log.id})" class="inline-flex items-center gap-2 cursor-pointer hover:opacity-75 transition bg-none border-none p-0" style="background: none; border: none; padding: 0;">
+              `<span class="photo-thumbnail cursor-pointer hover:opacity-75 transition inline-block" data-log-id="${log.id}" style="display: inline-block;">
                 <span class="inline-block w-16 h-16 rounded border overflow-hidden bg-slate-100">
                   <img src="${log.foto_url}" alt="foto" class="w-full h-full object-cover" />
                 </span>
-              </button>` : 
+              </span>` : 
               '<span class="text-xs text-slate-400">Sin foto</span>';
 
             return '<tr class="border-b hover:bg-gray-50">' +
@@ -4006,6 +4006,16 @@
           </tbody>
         </table>
       `;
+
+      // Agregar event listeners a las fotos
+      const photoThumbnails = container.querySelectorAll('.photo-thumbnail');
+      photoThumbnails.forEach(thumb => {
+        thumb.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const logId = parseInt(thumb.getAttribute('data-log-id'));
+          mostrarFoto(logId);
+        });
+      });
     }
 
     function exportFilteredLogsToCSV() {
