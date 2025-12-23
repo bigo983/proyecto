@@ -1147,6 +1147,7 @@
             const switchBtn = document.createElement('button');
             switchBtn.textContent = 'Cambiar cámara';
             switchBtn.className = 'bg-slate-600 hover:bg-slate-700 text-white font-bold py-2 px-4 rounded';
+            switchBtn.style.display = 'none';
             cameraControls.appendChild(switchBtn);
             let stream = null;
             let photoBlob = null;
@@ -1196,6 +1197,7 @@
                 video.style.display = 'block';
                 cameraControls.style.display = 'none';
                 photoControls.style.display = 'flex';
+                switchBtn.style.display = 'inline-flex';
               } catch (err) {
                 Swal.showValidationMessage('No se pudo acceder a la cámara: ' + err.message);
               }
