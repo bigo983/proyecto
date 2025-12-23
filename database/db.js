@@ -75,7 +75,7 @@ async function initDb() {
     await User.create({
       nombre: 'Admin',
       username: 'admin',
-      email: 'admin@fichaapp.com',
+      email: 'admin@agendaloya.es',
       password: hash,
       rol: 'admin'
     });
