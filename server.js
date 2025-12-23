@@ -211,12 +211,18 @@ app.use(async (req, res, next) => {
   // Remove port if present (e.g. example.com:3000)
   const hostWithoutPort = hostHeader.split(':')[0].toLowerCase();
 
-  // Detectar si es superadmin.agendaloya.es o superadmin en localhost
-  if (hostWithoutPort === 'superadmin.agendaloya.es' || (hostWithoutPort === 'localhost' && req.query.superadmin === '1')) {
+  // Detectar si es superadmin.agendaloya.es
+  const parts = hostWithoutPort.split('.');
+  const isCustomDomain = parts.length >= 2 && (parts[parts.length-2] + '.' + parts[parts.length-1]) === 'agendaloya.es';
+  const firstPart = parts.length > 0 ? parts[0] : '';
+  
+  if ((isCustomDomain && firstPart === 'superadmin') || (hostWithoutPort === 'localhost' && req.query.superadmin === '1')) {
     // Servir superadmin.html para cualquier ruta en este subdominio
     if (req.path === '/' || req.path === '/index.html') {
+      console.log('🔑 Serving superadmin.html for:', hostWithoutPort);
       return res.sendFile(path.join(__dirname, 'public', 'superadmin.html'));
     }
+    // Para otros paths, permitir que continúe (assets, API, etc.)
     return next();
   }
 
