@@ -380,6 +380,9 @@ app.get('/register.html', (req, res) => {
   res.status(404).send('Not found');
 });
 
+// Servir archivos estáticos de uploads (fotos de fichajes)
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
 app.use(express.static(path.join(__dirname, 'public')));
 
 // Evitar ruido en consola si no hay favicon.ico (no es crítico para la app).
@@ -850,6 +853,91 @@ app.post('/api/login', rateLimitLogin, async (req, res) => {
   }
 });
 
+// === ENDPOINTS DE RESETEO DE CONTRASEÑA ===
+
+// Solicitar reseteo de contraseña
+app.post('/api/request-password-reset', rateLimitLogin, async (req, res) => {
+  try {
+    const { username } = req.body;
+    
+    if (!req.company) {
+      return res.status(404).json({ error: 'Empresa no encontrada' });
+    }
+
+    const user = await User.findOne({
+      where: {
+        company_id: req.company.id,
+        [Op.or]: [{ username }, { email: username }]
+      }
+    });
+
+    if (!user) {
+      // Por seguridad, no revelamos si el usuario existe
+      return res.json({ success: true, message: 'Si el usuario existe, recibirá instrucciones' });
+    }
+
+    // Generar token aleatorio
+    const crypto = require('crypto');
+    const resetToken = crypto.randomBytes(32).toString('hex');
+    const resetTokenExpiry = new Date(Date.now() + 3600000); // 1 hora
+
+    user.reset_token = resetToken;
+    user.reset_token_expiry = resetTokenExpiry;
+    await user.save();
+
+    // En producción, aquí enviarías un email con el enlace
+    // Por ahora, devolvemos el token (en dev)
+    const resetLink = `https://${req.company.subdomain}.agendaloya.es/reset-password.html?token=${resetToken}`;
+    
+    console.log(`📧 Reset password link para ${user.username}: ${resetLink}`);
+
+    res.json({ 
+      success: true, 
+      message: 'Instrucciones enviadas (revisa la consola del servidor)',
+      // En desarrollo, devolvemos el link. En producción, ELIMINAR esto:
+      devLink: process.env.NODE_ENV !== 'production' ? resetLink : undefined
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Resetear contraseña con token
+app.post('/api/reset-password', async (req, res) => {
+  try {
+    const { token, newPassword } = req.body;
+
+    if (!token || !newPassword) {
+      return res.status(400).json({ error: 'Token y contraseña requeridos' });
+    }
+
+    if (newPassword.length < 4) {
+      return res.status(400).json({ error: 'La contraseña debe tener al menos 4 caracteres' });
+    }
+
+    const user = await User.findOne({
+      where: {
+        reset_token: token,
+        reset_token_expiry: { [Op.gt]: new Date() } // Token no expirado
+      }
+    });
+
+    if (!user) {
+      return res.status(400).json({ error: 'Token inválido o expirado' });
+    }
+
+    // Actualizar contraseña
+    user.password = await bcrypt.hash(newPassword, 10);
+    user.reset_token = null;
+    user.reset_token_expiry = null;
+    await user.save();
+
+    res.json({ success: true, message: 'Contraseña actualizada correctamente' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.get('/api/logs', async (req, res) => {
   try {
     if (!req.company) return res.status(401).json({ error: 'Empresa no identificada' });
@@ -866,7 +954,8 @@ app.get('/api/logs', async (req, res) => {
       tipo: log.tipo,
       fecha: log.fecha,
       lat: log.lat,
-      lon: log.lon
+      lon: log.lon,
+      foto_url: log.foto_url
     }));
 
     res.json(flatLogs);
@@ -969,7 +1058,7 @@ app.get('/api/config', async (req, res) => {
 
 // Endpoint POST /api/config
 app.post('/api/config', async (req, res) => {
-  const { lat, lon, maxDistance, address, metodo_fichaje, qr_duracion, qr_pin } = req.body;
+  const { lat, lon, maxDistance, address, metodo_fichaje, qr_duracion, qr_pin, require_photo } = req.body;
 
   try {
     if (!req.company) return res.status(404).json({ error: 'Empresa no encontrada' });
@@ -982,12 +1071,13 @@ app.post('/api/config', async (req, res) => {
         address: address !== undefined ? address : config.address,
         metodo_fichaje: metodo_fichaje !== undefined ? metodo_fichaje : config.metodo_fichaje,
         qr_duracion: qr_duracion !== undefined ? qr_duracion : config.qr_duracion,
-        qr_pin: qr_pin !== undefined ? qr_pin : config.qr_pin
+        qr_pin: qr_pin !== undefined ? qr_pin : config.qr_pin,
+        require_photo: require_photo !== undefined ? require_photo : config.require_photo
       });
     } else {
       config = await Config.create({
         company_id: req.company.id,
-        lat, lon, maxDistance, address, metodo_fichaje, qr_duracion, qr_pin
+        lat, lon, maxDistance, address, metodo_fichaje, qr_duracion, qr_pin, require_photo
       });
     }
 
@@ -1471,7 +1561,7 @@ Notas:
   }
 });
 
-app.post('/api/check-in', async (req, res) => {
+app.post('/api/check-in', upload.single('photo'), async (req, res) => {
   const { userId, lat, lon, tipo } = req.body;
 
   if (!userId || lat === undefined || lon === undefined) {
@@ -1481,6 +1571,14 @@ app.post('/api/check-in', async (req, res) => {
   const tipoFichaje = tipo || 'ENTRADA';
 
   try {
+    // Obtener configuración de la empresa
+    const config = await Config.findOne({ where: { company_id: req.company.id } });
+    
+    // Verificar si se requiere foto y no se envió
+    if (config && config.require_photo && !req.file) {
+      return res.status(400).json({ error: 'Se requiere foto para fichar' });
+    }
+
     // Primero verificar el último fichaje
     const lastLog = await Log.findOne({
       where: { user_id: userId, company_id: req.company.id }, // SCOPED
@@ -1490,12 +1588,15 @@ app.post('/api/check-in', async (req, res) => {
     // Validar el tipo según el último fichaje
     if (lastLog) {
       if (lastLog.tipo === 'ENTRADA' && tipoFichaje === 'ENTRADA') {
+        // Eliminar foto si se subió
+        if (req.file) fs.unlinkSync(req.file.path);
         return res.status(400).json({
           error: 'Ya has fichado la entrada. Debes fichar la salida.',
           requiredType: 'SALIDA'
         });
       }
       if (lastLog.tipo === 'SALIDA' && tipoFichaje === 'SALIDA') {
+        if (req.file) fs.unlinkSync(req.file.path);
         return res.status(400).json({
           error: 'Ya has fichado la salida. Debes fichar la entrada.',
           requiredType: 'ENTRADA'
@@ -1503,6 +1604,7 @@ app.post('/api/check-in', async (req, res) => {
       }
     } else if (tipoFichaje === 'SALIDA') {
       // Si no hay logs previos, no puede fichar salida
+      if (req.file) fs.unlinkSync(req.file.path);
       return res.status(400).json({
         error: 'No tienes registro de entrada. Debes fichar la entrada primero.',
         requiredType: 'ENTRADA'
@@ -1513,25 +1615,28 @@ app.post('/api/check-in', async (req, res) => {
     const distance = haversineDistance(lat, lon, RESTAURANT_LAT, RESTAURANT_LON);
 
     if (distance > MAX_DISTANCE) {
+      if (req.file) fs.unlinkSync(req.file.path);
       return res.status(400).json({
         error: `Estás fuera del rango permitido (${Math.round(distance)}m > ${MAX_DISTANCE}m)`,
         distance: Math.round(distance)
       });
     }
 
-    // Registrar fichaje
+    // Registrar fichaje con foto si existe
     const log = await Log.create({
       company_id: req.company.id, // SCOPED
       user_id: userId,
       tipo: tipoFichaje,
       lat,
-      lon
+      lon,
+      foto_url: req.file ? `/uploads/${req.file.filename}` : null
     });
 
     // Obtener info del usuario para respuesta
     const user = await User.findByPk(userId); // Nota: Al ser PK no es estrictamente necesario filtrar por company_id para lectura, pero sí para seguridad.
     // Mejora seguridad:
     if (user.company_id !== req.company.id) {
+      if (req.file) fs.unlinkSync(req.file.path);
       throw new Error("Usuario no pertenece a esta empresa");
     }
 

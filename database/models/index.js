@@ -48,7 +48,9 @@ const User = sequelize.define('User', {
     username: { type: DataTypes.STRING }, // Unique per company logic needs to be handled
     email: { type: DataTypes.STRING }, // Mantenemos email por si acaso, aunque sea opcional
     password: { type: DataTypes.STRING },
-    rol: { type: DataTypes.STRING, allowNull: false, defaultValue: 'camarero' }
+    rol: { type: DataTypes.STRING, allowNull: false, defaultValue: 'camarero' },
+    reset_token: { type: DataTypes.STRING }, // Token para resetear contraseña
+    reset_token_expiry: { type: DataTypes.DATE } // Expiración del token
 }, {
     tableName: 'users', // Mantiene compatibilidad con la tabla existente
     timestamps: true,
@@ -62,7 +64,8 @@ const Log = sequelize.define('Log', {
     tipo: { type: DataTypes.STRING, allowNull: false }, // ENTRADA o SALIDA
     fecha: { type: DataTypes.DATE, defaultValue: DataTypes.NOW },
     lat: { type: DataTypes.FLOAT },
-    lon: { type: DataTypes.FLOAT }
+    lon: { type: DataTypes.FLOAT },
+    foto_url: { type: DataTypes.STRING } // URL de la foto del fichaje (opcional)
 }, {
     tableName: 'logs',
     timestamps: false // La tabla original no tenía updatedAt
@@ -93,7 +96,8 @@ const Config = sequelize.define('Config', {
     address: { type: DataTypes.STRING, defaultValue: '' },
     metodo_fichaje: { type: DataTypes.STRING, defaultValue: 'gps' },
     qr_duracion: { type: DataTypes.INTEGER, defaultValue: 60 },
-    qr_pin: { type: DataTypes.STRING, defaultValue: '1234' }
+    qr_pin: { type: DataTypes.STRING, defaultValue: '1234' },
+    require_photo: { type: DataTypes.BOOLEAN, defaultValue: false } // Requerir foto al fichar
 }, {
     tableName: 'config',
     timestamps: false

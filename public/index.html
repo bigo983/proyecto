@@ -136,6 +136,10 @@
                  <input type="password" id="loginPassword" class="w-full px-4 py-3 border-2 border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500" placeholder="******" onkeypress="if(event.key === 'Enter') login()">
               </div>
               
+              <div class="text-right mb-2">
+                <a href="#" onclick="solicitarResetPassword(); return false;" class="text-sm text-cyan-600 hover:underline">¿Olvidaste tu contraseña?</a>
+              </div>
+              
               <button onclick="login()" class="w-full bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-3 rounded-lg transition duration-200 shadow-lg">
                 Iniciar Sesión
               </button>
@@ -225,6 +229,55 @@
       } catch (error) {
         Swal.fire('Error', 'Error de conexión', 'error');
         console.error(error);
+      }
+    }
+
+    async function solicitarResetPassword() {
+      const { value: username } = await Swal.fire({
+        title: 'Restablecer Contraseña',
+        input: 'text',
+        inputLabel: 'Ingresa tu usuario o email',
+        inputPlaceholder: 'usuario',
+        showCancelButton: true,
+        confirmButtonText: 'Enviar',
+        cancelButtonText: 'Cancelar',
+        confirmButtonColor: '#0891b2',
+        inputValidator: (value) => {
+          if (!value) {
+            return 'Debes ingresar un usuario';
+          }
+        }
+      });
+
+      if (!username) return;
+
+      try {
+        const res = await fetch('/api/request-password-reset', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username })
+        });
+
+        const data = await res.json();
+
+        if (data.devLink) {
+          // En desarrollo, mostrar el link directamente
+          await Swal.fire({
+            icon: 'info',
+            title: 'Link de Reseteo (DEV)',
+            html: `Copia este link para restablecer tu contraseña:<br><br><a href="${data.devLink}" class="text-blue-600 underline break-all">${data.devLink}</a>`,
+            confirmButtonColor: '#0891b2'
+          });
+        } else {
+          Swal.fire({
+            icon: 'success',
+            title: '¡Solicitud Enviada!',
+            text: data.message || 'Revisa tu email para continuar',
+            confirmButtonColor: '#0891b2'
+          });
+        }
+      } catch (error) {
+        Swal.fire('Error', 'Error al solicitar reseteo de contraseña', 'error');
       }
     }
 
@@ -1293,6 +1346,31 @@
                     <div class="bg-purple-50 border-2 border-purple-300 rounded-lg p-3 mt-4">
                       <p class="text-sm text-purple-800">🔒 Por seguridad, el QR se muestra en una vista separada accesible desde el login con PIN</p>
                     </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Configuración de Foto al Fichar -->
+              <div class="bg-white rounded-lg shadow-xl p-6 mb-4 border-2 border-slate-200">
+                <h2 class="text-2xl font-bold text-slate-800 mb-4">📸 Control de Fichaje con Foto</h2>
+                
+                <div class="max-w-md">
+                  <div class="flex items-center justify-between p-4 bg-slate-50 rounded-lg border-2 border-slate-200">
+                    <div class="flex-1">
+                      <label for="configRequirePhoto" class="font-semibold text-slate-700 cursor-pointer">
+                        📷 Requerir foto al fichar
+                      </label>
+                      <p class="text-xs text-slate-500 mt-1">Los empleados deberán tomar una selfie al fichar</p>
+                    </div>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                      <input type="checkbox" id="configRequirePhoto" ${config.require_photo ? 'checked' : ''} onchange="saveConfig()" class="sr-only peer">
+                      <div class="w-14 h-7 bg-slate-300 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-cyan-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[4px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-cyan-600"></div>
+                    </label>
+                  </div>
+                  
+                  <div class="bg-blue-50 border-2 border-blue-300 rounded-lg p-3 mt-4">
+                    <p class="text-sm text-blue-800">💡 Las fotos se guardan con cada fichaje y son visibles en los registros</p>
+                    <p class="text-xs text-blue-600 mt-1">⚠️ Asegúrate de cumplir con la normativa RGPD sobre captura de imágenes</p>
                   </div>
                 </div>
               </div>
@@ -3364,12 +3442,13 @@
       const metodo_fichaje = document.querySelector('input[name="metodo_fichaje"]:checked')?.value || 'gps';
       const qr_duracion = parseInt(document.getElementById('configQrDuracion')?.value || 60);
       const qr_pin = document.getElementById('configQrPin')?.value || '1234';
+      const require_photo = document.getElementById('configRequirePhoto')?.checked || false;
 
       try {
         const response = await fetch('/api/config', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ lat, lon, maxDistance, address, metodo_fichaje, qr_duracion, qr_pin })
+          body: JSON.stringify({ lat, lon, maxDistance, address, metodo_fichaje, qr_duracion, qr_pin, require_photo })
         });
 
         const data = await response.json();
