@@ -1153,6 +1153,11 @@
                   audio: false 
                 });
                 video.srcObject = stream;
+                video.setAttribute('playsinline', 'true'); // necesario en iOS para no ir a fullscreen
+                await video.play();
+                if (video.videoWidth === 0 || video.videoHeight === 0) {
+                  throw new Error('La cámara tardó demasiado en iniciar. Intenta de nuevo.');
+                }
                 video.style.display = 'block';
                 cameraControls.style.display = 'none';
                 photoControls.style.display = 'flex';
@@ -1162,6 +1167,10 @@
             });
 
             capturePhotoBtn.addEventListener('click', () => {
+              if (!stream) {
+                Swal.showValidationMessage('La cámara no está lista. Pulsa "Abrir Cámara" de nuevo.');
+                return;
+              }
               const ctx = canvas.getContext('2d');
               ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
               canvas.toBlob((blob) => {
