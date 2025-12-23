@@ -1077,6 +1077,11 @@
                 title: '¡Excelente!',
                 html: `<strong>${data.tipo}</strong> registrada<br>Distancia: ${data.distance || 0}m`,
                 confirmButtonColor: tipo === 'ENTRADA' ? '#16a34a' : '#f97316'
+              }).then(() => {
+                // Refrescar logs si el admin está viendo el panel
+                if (typeof loadLogsData === 'function') {
+                  loadLogsData();
+                }
               });
             } else {
               const distanceText = data.distance ? `Estás a ${data.distance}m. Máximo permitido: ${data.maxDistance || 50}m` : data.error;
@@ -1692,6 +1697,9 @@
                     
                     <!-- Botones de acción -->
                     <div class="flex flex-wrap gap-2">
+                      <button onclick="loadLogsData()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition">
+                        ⟲ Refrescar
+                      </button>
                       <button onclick="filterLogs()" class="bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-2 px-4 rounded-lg transition">
                         🔍 Buscar
                       </button>
