@@ -336,6 +336,12 @@ function isSuperAdminSubdomain(req) {
 app.get('/', (req, res, next) => {
   if (isSuperAdminSubdomain(req)) {
     console.log('🔑 [SUPERADMIN] Serving superadmin.html for:', req.headers.host);
+    // Headers para evitar caché y limpiar cookies de empresa
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+    // Limpiar cookie de empresa que puede interferir
+    res.setHeader('Set-Cookie', 'company=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; HttpOnly; SameSite=Lax');
     return res.sendFile(path.join(__dirname, 'public', 'superadmin.html'));
   }
   next();
@@ -344,6 +350,10 @@ app.get('/', (req, res, next) => {
 app.get('/index.html', (req, res, next) => {
   if (isSuperAdminSubdomain(req)) {
     console.log('🔑 [SUPERADMIN] Redirecting /index.html to superadmin.html for:', req.headers.host);
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+    res.setHeader('Set-Cookie', 'company=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; HttpOnly; SameSite=Lax');
     return res.sendFile(path.join(__dirname, 'public', 'superadmin.html'));
   }
   next();

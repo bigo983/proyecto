@@ -7,25 +7,34 @@ const urlsToCache = [
 self.addEventListener('install', (event) => {
   // Activate the new service worker as soon as it's finished installing.
   self.skipWaiting();
+  console.log('Service Worker: Nueva versión instalada -', CACHE_NAME);
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
       console.log('Service Worker: Cache abierto');
-      return cache.addAll(urlsToCache);
+      return cache.addAll(urlsToCache).catch(err => {
+        console.warn('Service Worker: Error cacheando URLs', err);
+        return Promise.resolve(); // No fallar si no puede cachear
+      });
     })
   );
 });
 
 self.addEventListener('activate', (event) => {
+  console.log('Service Worker: Activando nueva versión -', CACHE_NAME);
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(
         cacheNames.map((cacheName) => {
           if (cacheName !== CACHE_NAME) {
+            console.log('Service Worker: Eliminando caché antigua -', cacheName);
             return caches.delete(cacheName);
           }
         })
       );
-    }).then(() => self.clients.claim())
+    }).then(() => {
+      console.log('Service Worker: Tomando control de todas las páginas');
+      return self.clients.claim();
+    })
   );
 });
 

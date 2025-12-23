@@ -1,0 +1,108 @@
+/* Banner de Cookies GDPR - Incluir en todas las páginas */
+.gdpr-banner {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+    color: white;
+    padding: 1.5rem;
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.3);
+    z-index: 9999;
+    transform: translateY(100%);
+    transition: transform 0.3s ease-in-out;
+    border-top: 3px solid #3b82f6;
+}
+
+.gdpr-banner.show {
+    transform: translateY(0);
+}
+
+.gdpr-banner-content {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.gdpr-banner-text {
+    flex: 1;
+    min-width: 250px;
+}
+
+.gdpr-banner-text h3 {
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+}
+
+.gdpr-banner-text p {
+    font-size: 0.9rem;
+    opacity: 0.9;
+    line-height: 1.5;
+}
+
+.gdpr-banner-text a {
+    color: #60a5fa;
+    text-decoration: underline;
+}
+
+.gdpr-banner-text a:hover {
+    color: #93c5fd;
+}
+
+.gdpr-banner-buttons {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.gdpr-btn {
+    padding: 0.75rem 1.5rem;
+    border: none;
+    border-radius: 0.5rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 0.9rem;
+}
+
+.gdpr-btn-accept {
+    background: #3b82f6;
+    color: white;
+}
+
+.gdpr-btn-accept:hover {
+    background: #2563eb;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+}
+
+.gdpr-btn-reject {
+    background: transparent;
+    color: white;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+}
+
+.gdpr-btn-reject:hover {
+    border-color: rgba(255, 255, 255, 0.6);
+    background: rgba(255, 255, 255, 0.1);
+}
+
+@media (max-width: 768px) {
+    .gdpr-banner-content {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .gdpr-banner-buttons {
+        justify-content: stretch;
+    }
+    
+    .gdpr-btn {
+        flex: 1;
+    }
+}

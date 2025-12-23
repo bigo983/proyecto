@@ -5,9 +5,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Super Admin Dashboard - Ficha App</title>
+    <link rel="stylesheet" href="/gdpr-banner.css">
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="/gdpr-banner.js" defer></script>
 </head>
 
 <body class="bg-gray-100 font-sans">
@@ -370,6 +372,19 @@
 
         // Init
         loadCompanies();
+
+        // Forzar actualización del Service Worker y limpiar cookies viejas
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.getRegistrations().then(registrations => {
+                registrations.forEach(registration => {
+                    registration.update(); // Forzar actualización
+                    console.log('Service Worker actualizado');
+                });
+            });
+        }
+
+        // Limpiar cookie de empresa que puede interferir con superadmin
+        document.cookie = 'company=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax';
     </script>
 </body>
 
