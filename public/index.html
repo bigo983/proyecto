@@ -1032,6 +1032,7 @@
             });
 
             const data = await response.json();
+            console.log('DEBUG checkIn response:', { status: response.status, data });
 
             if (response.ok) {
               Swal.fire({
@@ -1044,7 +1045,7 @@
               const distanceText = data.distance ? `Estás a ${data.distance}m. Máximo permitido: ${data.maxDistance || 50}m` : data.error;
               Swal.fire({
                 icon: 'error',
-                title: 'Demasiado lejos',
+                title: 'Error al fichar',
                 text: distanceText,
                 confirmButtonColor: '#dc2626'
               });
