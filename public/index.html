@@ -4327,6 +4327,18 @@
       loadUsers().then(() => renderLogin());
     }
 
+    // Listener global para previsualizar fotos sin depender de eventos inline
+    document.addEventListener('click', (event) => {
+      const btn = event.target.closest('.photo-btn');
+      if (!btn) return;
+      event.preventDefault();
+      event.stopPropagation();
+      const logId = Number(btn.dataset.id);
+      if (!Number.isFinite(logId)) return;
+      console.log('DEBUG: click global en foto, logId=', logId);
+      mostrarFoto(logId);
+    });
+
     loadUsers().then(() => renderLogin());
   </script>
 </body>
