@@ -3987,10 +3987,9 @@
             }
 
             const fotoHTML = log.foto_url ? 
-              `<button class="photo-btn" data-id="${log.id}" style="background: none; border: none; padding: 0; cursor: pointer; display: inline-block;">
-                <div class="inline-block w-16 h-16 rounded border overflow-hidden bg-slate-100 hover:opacity-75 transition" style="background-image: url('${log.foto_url}'); background-size: cover; background-position: center; width: 64px; height: 64px;">
-                </div>
-              </button>` : 
+              `<div class="photo-btn inline-block" data-id="${log.id}" onclick="window.previewLogPhoto(${log.id});" style="cursor: pointer;">
+                 <div class="inline-block w-16 h-16 rounded border overflow-hidden bg-slate-100 hover:opacity-75 transition" style="background-image: url('${log.foto_url}'); background-size: cover; background-position: center; width: 64px; height: 64px;"></div>
+               </div>` : 
               '<span class="text-xs text-slate-400">Sin foto</span>';
 
             return '<tr class="border-b hover:bg-gray-50">' +
@@ -4011,18 +4010,7 @@
         </table>
       `;
 
-      // Agregar event listeners a las fotos usando delegación
-      const photoThumbnails = container.querySelectorAll('.photo-btn');
-      console.log('DEBUG: Encontrados ' + photoThumbnails.length + ' botones de foto');
-      photoThumbnails.forEach(btn => {
-        btn.addEventListener('click', function(e) {
-          e.preventDefault();
-          e.stopPropagation();
-          const logId = parseInt(this.getAttribute('data-id'));
-          console.log('DEBUG: Click en foto con ID:', logId);
-          mostrarFoto(logId);
-        });
-      });
+      // No se agregan listeners aquí porque se usa onclick inline window.previewLogPhoto
     }
 
     function exportFilteredLogsToCSV() {
@@ -4327,17 +4315,11 @@
       loadUsers().then(() => renderLogin());
     }
 
-    // Listener global para previsualizar fotos sin depender de eventos inline
-    document.addEventListener('click', (event) => {
-      const btn = event.target.closest('.photo-btn');
-      if (!btn) return;
-      event.preventDefault();
-      event.stopPropagation();
-      const logId = Number(btn.dataset.id);
-      if (!Number.isFinite(logId)) return;
-      console.log('DEBUG: click global en foto, logId=', logId);
-      mostrarFoto(logId);
-    });
+    // Función global para previsualizar fotos desde onclick inline
+    window.previewLogPhoto = function(logId) {
+      if (!Number.isFinite(Number(logId))) return;
+      mostrarFoto(Number(logId));
+    };
 
     loadUsers().then(() => renderLogin());
   </script>
