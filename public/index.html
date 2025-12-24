@@ -3987,15 +3987,15 @@
             }
 
             const fotoHTML = log.foto_url ? 
-              `<div class="flex items-center justify-center gap-2">
-                 <div class="photo-thumb inline-block" 
+              `<div class="flex flex-col items-center justify-center gap-2">
+                 <div class="photo-thumb" 
                       data-log-id="${log.id}"
                       role="button" tabindex="0"
-                      style="cursor:pointer; user-select:none; outline:none;">
-                   <div class="inline-block w-16 h-16 rounded border overflow-hidden bg-slate-100" 
-                        style="background-image: url('${log.foto_url}'); background-size: cover; background-position: center; width: 64px; height: 64px;"></div>
+                      style="cursor:pointer; user-select:none; outline:none; width:64px; height:64px;">
+                   <div class="w-16 h-16 rounded border overflow-hidden bg-slate-100" 
+                        style="background-image: url('${log.foto_url}'); background-size: cover; background-position: center;"></div>
                  </div>
-                 <button type="button" class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-2 py-1 rounded" 
+                 <button type="button" class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-2 py-1 rounded shadow" 
                          data-log-id="${log.id}" onclick="return window.__previewLogPhotoBtn(event, ${log.id});">
                    Ver foto
                  </button>
