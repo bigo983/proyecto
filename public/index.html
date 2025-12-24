@@ -3987,11 +3987,11 @@
             }
 
             const fotoHTML = log.foto_url ? 
-              `<div class="photo-thumb inline-block" data-log-id="${log.id}" role="button" tabindex="0" aria-label="Ver foto" 
-                   style="cursor: pointer; outline: none;">
+              `<button type="button" onclick="return window.__previewLogPhoto(event, ${log.id});" 
+                       class="inline-block" style="cursor:pointer; background:none; border:none; padding:0;">
                  <div class="inline-block w-16 h-16 rounded border overflow-hidden bg-slate-100 hover:opacity-75 transition" 
                       style="background-image: url('${log.foto_url}'); background-size: cover; background-position: center; width: 64px; height: 64px;"></div>
-               </div>` : 
+               </button>` : 
               '<span class="text-xs text-slate-400">Sin foto</span>';
 
             return '<tr class="border-b hover:bg-gray-50">' +
@@ -4317,16 +4317,17 @@
       loadUsers().then(() => renderLogin());
     }
 
-    // Listener global (captura) para abrir previsualización y evitar descargas/navegaciones
-    document.addEventListener('click', function (e) {
-      const thumb = e.target.closest('.photo-thumb');
-      if (!thumb) return;
-      e.preventDefault();
-      e.stopPropagation();
-      const logId = Number(thumb.dataset.logId);
-      if (!Number.isFinite(logId)) return;
-      mostrarFoto(logId);
-    }, true);
+    // Handler global para previsualizar (usado por onclick inline)
+    window.__previewLogPhoto = function (evt, logId) {
+      if (evt) {
+        evt.preventDefault();
+        evt.stopPropagation();
+      }
+      const id = Number(logId);
+      if (!Number.isFinite(id)) return false;
+      mostrarFoto(id);
+      return false;
+    };
 
     loadUsers().then(() => renderLogin());
   </script>
