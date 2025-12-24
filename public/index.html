@@ -3987,7 +3987,7 @@
             }
 
             const fotoHTML = log.foto_url ? 
-              `<button type="button" class="photo-btn inline-block" data-id="${log.id}" onclick="window.previewLogPhoto(${log.id});" style="cursor: pointer; background: none; border: none; padding: 0;">
+              `<button type="button" class="photo-btn inline-block" data-id="${log.id}" style="cursor: pointer; background: none; border: none; padding: 0;">
                  <div class="inline-block w-16 h-16 rounded border overflow-hidden bg-slate-100 hover:opacity-75 transition" style="background-image: url('${log.foto_url}'); background-size: cover; background-position: center; width: 64px; height: 64px;"></div>
                </button>` : 
               '<span class="text-xs text-slate-400">Sin foto</span>';
@@ -4315,11 +4315,16 @@
       loadUsers().then(() => renderLogin());
     }
 
-    // Función global para previsualizar fotos desde onclick inline
-    window.previewLogPhoto = function(logId) {
-      if (!Number.isFinite(Number(logId))) return;
-      mostrarFoto(Number(logId));
-    };
+    // Listener capturando clicks en thumbnails para abrir previsualización sin descargas
+    document.addEventListener('click', function (e) {
+      const btn = e.target.closest('.photo-btn');
+      if (!btn) return;
+      e.preventDefault();
+      e.stopPropagation();
+      const logId = Number(btn.dataset.id);
+      if (!Number.isFinite(logId)) return;
+      mostrarFoto(logId);
+    }, true);
 
     loadUsers().then(() => renderLogin());
   </script>
