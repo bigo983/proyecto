@@ -3987,13 +3987,18 @@
             }
 
             const fotoHTML = log.foto_url ? 
-              `<div class="photo-thumb inline-block" 
-                    data-log-id="${log.id}" 
-                    data-foto-url="${log.foto_url}" 
-                    role="button" tabindex="0"
-                    style="cursor:pointer; user-select:none; outline:none;">
-                 <div class="inline-block w-16 h-16 rounded border overflow-hidden bg-slate-100 hover:opacity-75 transition" 
-                      style="background-image: url('${log.foto_url}'); background-size: cover; background-position: center; width: 64px; height: 64px;"></div>
+              `<div class="flex items-center justify-center gap-2">
+                 <div class="photo-thumb inline-block" 
+                      data-log-id="${log.id}"
+                      role="button" tabindex="0"
+                      style="cursor:pointer; user-select:none; outline:none;">
+                   <div class="inline-block w-16 h-16 rounded border overflow-hidden bg-slate-100" 
+                        style="background-image: url('${log.foto_url}'); background-size: cover; background-position: center; width: 64px; height: 64px;"></div>
+                 </div>
+                 <button type="button" class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-2 py-1 rounded" 
+                         data-log-id="${log.id}" onclick="return window.__previewLogPhotoBtn(event, ${log.id});">
+                   Ver foto
+                 </button>
                </div>` : 
               '<span class="text-xs text-slate-400">Sin foto</span>';
 
@@ -4332,6 +4337,18 @@
         mostrarFoto(logId);
       }, true);
     });
+
+    // Botón explícito "Ver foto"
+    window.__previewLogPhotoBtn = function (evt, logId) {
+      if (evt) {
+        evt.preventDefault();
+        evt.stopPropagation();
+      }
+      const id = Number(logId);
+      if (!Number.isFinite(id)) return false;
+      mostrarFoto(id);
+      return false;
+    };
 
     loadUsers().then(() => renderLogin());
   </script>
