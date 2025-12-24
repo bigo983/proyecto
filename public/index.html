@@ -3987,9 +3987,9 @@
             }
 
             const fotoHTML = log.foto_url ? 
-              `<div class="photo-btn inline-block" data-id="${log.id}" onclick="window.previewLogPhoto(${log.id});" style="cursor: pointer;">
+              `<button type="button" class="photo-btn inline-block" data-id="${log.id}" onclick="window.previewLogPhoto(${log.id});" style="cursor: pointer; background: none; border: none; padding: 0;">
                  <div class="inline-block w-16 h-16 rounded border overflow-hidden bg-slate-100 hover:opacity-75 transition" style="background-image: url('${log.foto_url}'); background-size: cover; background-position: center; width: 64px; height: 64px;"></div>
-               </div>` : 
+               </button>` : 
               '<span class="text-xs text-slate-400">Sin foto</span>';
 
             return '<tr class="border-b hover:bg-gray-50">' +
