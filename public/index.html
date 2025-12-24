@@ -3988,9 +3988,8 @@
 
             const fotoHTML = log.foto_url ? 
               `<button class="photo-btn" data-id="${log.id}" style="background: none; border: none; padding: 0; cursor: pointer; display: inline-block;">
-                <span class="inline-block w-16 h-16 rounded border overflow-hidden bg-slate-100 hover:opacity-75 transition">
-                  <img src="${log.foto_url}" alt="foto" class="w-full h-full object-cover" style="pointer-events: none;" draggable="false" />
-                </span>
+                <div class="inline-block w-16 h-16 rounded border overflow-hidden bg-slate-100 hover:opacity-75 transition" style="background-image: url('${log.foto_url}'); background-size: cover; background-position: center; width: 64px; height: 64px;">
+                </div>
               </button>` : 
               '<span class="text-xs text-slate-400">Sin foto</span>';
 
