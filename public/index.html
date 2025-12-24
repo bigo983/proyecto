@@ -3987,9 +3987,11 @@
             }
 
             const fotoHTML = log.foto_url ? 
-              `<button type="button" class="photo-btn inline-block" data-id="${log.id}" style="cursor: pointer; background: none; border: none; padding: 0;">
-                 <div class="inline-block w-16 h-16 rounded border overflow-hidden bg-slate-100 hover:opacity-75 transition" style="background-image: url('${log.foto_url}'); background-size: cover; background-position: center; width: 64px; height: 64px;"></div>
-               </button>` : 
+              `<div class="photo-thumb inline-block" data-log-id="${log.id}" role="button" tabindex="0" aria-label="Ver foto" 
+                   style="cursor: pointer; outline: none;">
+                 <div class="inline-block w-16 h-16 rounded border overflow-hidden bg-slate-100 hover:opacity-75 transition" 
+                      style="background-image: url('${log.foto_url}'); background-size: cover; background-position: center; width: 64px; height: 64px;"></div>
+               </div>` : 
               '<span class="text-xs text-slate-400">Sin foto</span>';
 
             return '<tr class="border-b hover:bg-gray-50">' +
@@ -4315,13 +4317,13 @@
       loadUsers().then(() => renderLogin());
     }
 
-    // Listener capturando clicks en thumbnails para abrir previsualización sin descargas
+    // Listener global (captura) para abrir previsualización y evitar descargas/navegaciones
     document.addEventListener('click', function (e) {
-      const btn = e.target.closest('.photo-btn');
-      if (!btn) return;
+      const thumb = e.target.closest('.photo-thumb');
+      if (!thumb) return;
       e.preventDefault();
       e.stopPropagation();
-      const logId = Number(btn.dataset.id);
+      const logId = Number(thumb.dataset.logId);
       if (!Number.isFinite(logId)) return;
       mostrarFoto(logId);
     }, true);
